@@ -48,7 +48,8 @@ where
     type Output = Polynomial<T>;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut result = vec![T::default(); self.coeffs.len() + rhs.coeffs.len() - 1];
+        let mut result =
+            vec![T::default(); self.coeffs.len() + rhs.coeffs.len() - 1];
         for (idx_l, val_l) in self.coeffs.iter().enumerate() {
             for (idx_r, val_r) in rhs.coeffs.iter().enumerate() {
                 result[idx_l + idx_r] += val_l.clone() * val_r.clone();
@@ -66,7 +67,8 @@ where
     type Output = Polynomial<T>;
 
     fn add(self, rhs: Self) -> Self::Output {
-        let mut result = vec![T::default(); self.coeffs.len().max(rhs.coeffs.len())];
+        let mut result =
+            vec![T::default(); self.coeffs.len().max(rhs.coeffs.len())];
         for (idx, val) in self.coeffs.iter().enumerate() {
             result[idx] += val.clone();
         }
@@ -129,12 +131,20 @@ where
 
 impl<T> RationalFunction<T>
 where
-    T: One + Div<Output = T> + Zero + Clone + Mul<Output = T> + Default + AddAssign,
+    T: One
+        + Div<Output = T>
+        + Zero
+        + Clone
+        + Mul<Output = T>
+        + Default
+        + AddAssign,
 {
     pub fn normalize(&self) -> Self {
-        let highest_order_gain = self.den.coeffs.last().unwrap_or(&T::one()).clone();
+        let highest_order_gain =
+            self.den.coeffs.last().unwrap_or(&T::one()).clone();
 
-        let inv_highest_order_gain = Polynomial::new(&[T::one() / highest_order_gain]);
+        let inv_highest_order_gain =
+            Polynomial::new(&[T::one() / highest_order_gain]);
         let new_den = inv_highest_order_gain.clone() * self.den.clone();
         let new_num = inv_highest_order_gain * self.num.clone();
 
@@ -230,7 +240,8 @@ mod tests {
         let mut rng = rand::rng();
 
         let mut gen_rand_coeffs = || {
-            let rand_coeffs: Vec<f64> = (0..10).map(|_| rng.random_range(1..=100) as f64).collect();
+            let rand_coeffs: Vec<f64> =
+                (0..10).map(|_| rng.random_range(1..=100) as f64).collect();
             rand_coeffs
         };
 
@@ -247,17 +258,30 @@ mod tests {
             let p2_val = p2.eval(&x);
 
             let p_mult = p1.clone() * p2.clone();
-            assert_abs_diff_eq!(p_mult.eval(&x), p2_val * p1_val, epsilon = 1e-3);
+            assert_abs_diff_eq!(
+                p_mult.eval(&x),
+                p2_val * p1_val,
+                epsilon = 1e-3
+            );
             let p_add = p1.clone() + p2.clone();
-            assert_abs_diff_eq!(p_add.eval(&x), p2_val + p1_val, epsilon = 1e-3);
+            assert_abs_diff_eq!(
+                p_add.eval(&x),
+                p2_val + p1_val,
+                epsilon = 1e-3
+            );
             let p_sub = p1.clone() - p2.clone();
-            assert_abs_diff_eq!(p_sub.eval(&x), p1_val - p2_val, epsilon = 1e-3);
+            assert_abs_diff_eq!(
+                p_sub.eval(&x),
+                p1_val - p2_val,
+                epsilon = 1e-3
+            );
         }
     }
 
     #[test]
     fn rational_functions_normalize() {
-        let rf = RationalFunction::new_from_coeffs(&[2., 0., 4., 6.], &[0., 2.0]);
+        let rf =
+            RationalFunction::new_from_coeffs(&[2., 0., 4., 6.], &[0., 2.0]);
         let rf = rf.normalize();
         assert_abs_diff_eq!(rf.den.coeffs.last().unwrap().clone(), 1.0);
         assert_abs_diff_eq!(rf.num.coeffs[0], 1.0);
@@ -268,7 +292,10 @@ mod tests {
     fn rational_functions_eval() {
         let mut rng = rand::rng();
         let coeffs: Vec<f64> = (0..100).map(|_| rng.random::<f64>()).collect();
-        let rf = RationalFunction::new_from_coeffs(coeffs.as_slice(), coeffs.as_slice());
+        let rf = RationalFunction::new_from_coeffs(
+            coeffs.as_slice(),
+            coeffs.as_slice(),
+        );
 
         for x in (0..1000).map(|_| rng.random::<f64>()) {
             assert_abs_diff_eq!(rf.eval(&x), 1.0);
@@ -281,7 +308,10 @@ mod tests {
         for _ in 0..10 {
             let num: Vec<f64> = (0..10).map(|_| rng.random::<f64>()).collect();
             let den: Vec<f64> = (0..10).map(|_| rng.random::<f64>()).collect();
-            let rf = RationalFunction::new_from_coeffs(num.as_slice(), den.as_slice());
+            let rf = RationalFunction::new_from_coeffs(
+                num.as_slice(),
+                den.as_slice(),
+            );
 
             for x in (0..100).map(|_| rng.random::<f64>()) {
                 let zero = rf.clone() - rf.clone();

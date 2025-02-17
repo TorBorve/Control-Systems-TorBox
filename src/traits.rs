@@ -31,7 +31,7 @@ macro_rules! impl_traits {
                 *self == $one
             }
         }
-    }
+    };
 }
 
 impl_traits!(f32, 0., 1.);

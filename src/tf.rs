@@ -1,10 +1,9 @@
-use std::ops::Add;
-use std::ops::Div;
-use std::ops::Sub;
-use std::vec;
+use std::{
+    ops::{Add, Div, Sub},
+    vec,
+};
 
-use std::fmt;
-use std::ops::Mul;
+use std::{fmt, ops::Mul};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Tf {
@@ -50,7 +49,8 @@ impl Tf {
     pub fn z(sampling_time: f64) -> Result<Tf, String> {
         if sampling_time == 0.0 {
             return Err(
-                "Sampling time must be positive for discrete transfer function".to_string(),
+                "Sampling time must be positive for discrete transfer function"
+                    .to_string(),
             );
         }
         Tf::new(vec![1.0, 0.0], vec![1.0], sampling_time)
