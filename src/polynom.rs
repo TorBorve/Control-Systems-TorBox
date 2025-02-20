@@ -1,6 +1,9 @@
 use crate::traits::{One, Zero};
-use std::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
+/////////////////////////////////////////////////////////
+/// Polynomial
+////////////////////////////////////////////////////////
 #[derive(Debug, PartialEq, Clone)]
 pub struct Polynomial<T> {
     coeffs: Vec<T>,
@@ -23,6 +26,19 @@ impl<T: Zero + Clone> Polynomial<T> {
         }
 
         self
+    }
+
+    pub fn new_from_scalar(value: T) -> Self {
+        Self::new(&[value])
+    }
+}
+
+impl<T> From<T> for Polynomial<T>
+where
+    T: Zero + Clone,
+{
+    fn from(value: T) -> Self {
+        Polynomial::new_from_scalar(value)
     }
 }
 
@@ -104,6 +120,107 @@ where
     }
 }
 
+macro_rules! impl_compound_assign {
+    ($struct_type:ident, [$(($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident )), *]) => {
+    $(
+        impl<T> $assign_trait for $struct_type<T>
+        where
+            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T>,
+        {
+            fn $assign_method(&mut self, rhs: Self) {
+                *self = self.clone().$method(rhs)
+            }
+        }
+    )*
+    };
+}
+
+impl_compound_assign!(
+    Polynomial,
+    [
+        (Add, add, AddAssign, add_assign),
+        (Sub, sub, SubAssign, sub_assign),
+        (Mul, mul, MulAssign, mul_assign)
+    ]
+);
+
+// Did this because of orphanrule. However, could also just use .into()?
+macro_rules! impl_one_operator_scalar_trait {
+    ($struct_type:ident, $scalar_type:ty , [$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl $operator<$scalar_type> for $struct_type<$scalar_type>
+            {
+                type Output = Self;
+                fn $operator_fn(self, rhs: $scalar_type) -> Self::Output {
+                    self.$operator_fn($struct_type::<$scalar_type>::new_from_scalar(rhs))
+                }
+            }
+
+            impl $operator<$struct_type<$scalar_type>> for $scalar_type
+            {
+                type Output = $struct_type<$scalar_type>;
+                fn $operator_fn(self, rhs: $struct_type<$scalar_type>) -> Self::Output {
+                    let scalar = $struct_type::<$scalar_type>::new_from_scalar(self);
+                    scalar.$operator_fn(rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    f64,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    f32,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    i8,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    i16,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    i32,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    i64,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    i128,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+
+impl_one_operator_scalar_trait!(
+    Polynomial,
+    isize,
+    [(Sub, sub), (Add, add), (Mul, mul)]
+);
+impl_one_operator_scalar_trait!(Polynomial, u8, [(Add, add), (Mul, mul)]);
+impl_one_operator_scalar_trait!(Polynomial, u16, [(Add, add), (Mul, mul)]);
+
+impl_one_operator_scalar_trait!(Polynomial, u32, [(Add, add), (Mul, mul)]);
+impl_one_operator_scalar_trait!(Polynomial, u64, [(Add, add), (Mul, mul)]);
+impl_one_operator_scalar_trait!(Polynomial, u128, [(Add, add), (Mul, mul)]);
+impl_one_operator_scalar_trait!(Polynomial, usize, [(Add, add), (Mul, mul)]);
+
+/////////////////////////////////////////////////////////////
+/// Rational function
+////////////////////////////////////////////////////////////
 #[derive(Debug, Clone)]
 pub struct RationalFunction<T> {
     num: Polynomial<T>,
@@ -276,6 +393,38 @@ mod tests {
                 epsilon = 1e-3
             );
         }
+    }
+
+    #[test]
+    fn polynomial_assignment() {
+        let mut rng = rand::rng();
+        let mut gen_rand_coeffs = || {
+            let rand_coeffs: Vec<f64> =
+                (0..10).map(|_| rng.random_range(1..=100) as f64).collect();
+            rand_coeffs
+        };
+        let p1 = Polynomial::new(gen_rand_coeffs().as_slice());
+        let p2 = Polynomial::new(gen_rand_coeffs().as_slice());
+
+        let mut p = p1.clone();
+        p += p2.clone();
+        assert_eq!(p, p1.clone() + p2.clone());
+
+        let mut p = p1.clone();
+        p -= p2.clone();
+        assert_eq!(p, p1.clone() - p2.clone());
+
+        let mut p = p1.clone();
+        p *= p2.clone();
+        assert_eq!(p, p1 * p2);
+    }
+
+    #[test]
+    fn polynomial_scalar() {
+        let p = Polynomial::new_from_scalar(1.0);
+        assert_eq!(p.clone() - 1.0, 0.0.into());
+        assert_eq!(p.clone() + 1.0, 2.0.into());
+        assert_eq!(p.clone() * 2.0, 2.0.into());
     }
 
     #[test]
