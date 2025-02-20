@@ -1,5 +1,7 @@
 use crate::traits::{One, Zero};
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
+};
 
 /////////////////////////////////////////////////////////
 /// Polynomial
@@ -125,7 +127,7 @@ macro_rules! impl_compound_assign {
     $(
         impl<T> $assign_trait for $struct_type<T>
         where
-            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T>,
+            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add,
         {
             fn $assign_method(&mut self, rhs: Self) {
                 *self = self.clone().$method(rhs)
@@ -237,6 +239,24 @@ impl<T: Zero + Clone> RationalFunction<T> {
 
 impl<T> RationalFunction<T>
 where
+    T: Zero + Clone + One,
+{
+    pub fn new_from_scalar(scalar: T) -> Self {
+        Self::new_from_coeffs(&[scalar], &[T::one()])
+    }
+}
+
+impl<T> From<T> for RationalFunction<T>
+where
+    T: Zero + Clone + One,
+{
+    fn from(value: T) -> Self {
+        Self::new_from_scalar(value)
+    }
+}
+
+impl<T> RationalFunction<T>
+where
     T: One + Zero + Mul<Output = T> + Div<Output = T> + AddAssign + Clone,
 {
     pub fn eval(&self, x: &T) -> T {
@@ -269,6 +289,24 @@ where
             num: new_num,
             den: new_den,
         }
+    }
+}
+
+impl<T> PartialEq for RationalFunction<T>
+where
+    T: One
+        + Div<Output = T>
+        + Zero
+        + Clone
+        + Mul<Output = T>
+        + Default
+        + AddAssign
+        + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let lhs = self.normalize();
+        let rhs = other.normalize();
+        lhs.num == rhs.num && lhs.den == rhs.den
     }
 }
 
@@ -345,6 +383,93 @@ where
     }
 }
 
+impl_compound_assign!(
+    RationalFunction,
+    [
+        (Add, add, AddAssign, add_assign),
+        (Sub, sub, SubAssign, sub_assign),
+        (Mul, mul, MulAssign, mul_assign),
+        (Div, div, DivAssign, div_assign)
+    ]
+);
+
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    f64,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    f32,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    i8,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    i16,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    i32,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    i64,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    i128,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    isize,
+    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    u8,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    u16,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    u32,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    u64,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    u128,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+impl_one_operator_scalar_trait!(
+    RationalFunction,
+    usize,
+    [(Add, add), (Mul, mul), (Div, div)]
+);
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/// Tests
+//////////////////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -471,5 +596,37 @@ mod tests {
                 assert_abs_diff_eq!(zero.eval(&x), 0.0, epsilon = 1e-6);
             }
         }
+    }
+
+    #[test]
+    fn rational_functions_assignment() {
+        let rf1 =
+            RationalFunction::new_from_coeffs(&[16.0, 32.0, 1.0], &[2.0, 8.0]);
+        let rf2 =
+            RationalFunction::new_from_coeffs(&[1.0, 2.0], &[8.0, 4.0, 2.0]);
+        let mut rf = rf1.clone();
+        rf += rf2.clone();
+        assert_eq!(rf, rf1.clone() + rf2.clone());
+
+        let mut rf = rf1.clone();
+        rf -= rf2.clone();
+        assert_eq!(rf, rf1.clone() - rf2.clone());
+
+        let mut rf = rf1.clone();
+        rf *= rf2.clone();
+        assert_eq!(rf, rf1.clone() * rf2.clone());
+
+        let mut rf = rf1.clone();
+        rf /= rf2.clone();
+        assert_eq!(rf, rf1.clone() / rf2.clone());
+    }
+
+    #[test]
+    fn rational_functions_scalar_math() {
+        let rf: RationalFunction<f64> = 1.0.into();
+        assert_eq!(rf.clone() - 1.0, 0.0.into());
+        assert_eq!(rf.clone() + 1.0, 2.0.into());
+        assert_eq!(rf.clone() * 2.0, 2.0.into());
+        assert_eq!(rf.clone() / 2.0, 0.5.into());
     }
 }
