@@ -15,3 +15,8 @@ Control Systems Torbox is a rust library for performing analysis, simulation and
 - [ ] pole zero plot
 - [ ] Pade approximation
 - [ ] c2d and d2c
+
+## Todo
+
+- [ ] Display TF, RF, Polynomial
+

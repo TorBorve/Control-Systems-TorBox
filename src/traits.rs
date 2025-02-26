@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 pub trait Zero {
     fn zero() -> Self;
 
@@ -48,3 +50,23 @@ impl_traits!(u32, 0, 1);
 impl_traits!(u64, 0, 1);
 impl_traits!(u128, 0, 1);
 impl_traits!(usize, 0, 1);
+impl_traits!(
+    num_complex::Complex32,
+    num_complex::c32(0.0, 0.0),
+    num_complex::c32(1.0, 0.0)
+);
+impl_traits!(
+    num_complex::Complex64,
+    num_complex::c64(0.0, 0.0),
+    num_complex::c64(1.0, 0.0)
+);
+
+pub trait Time: Clone + Debug {}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Continuous {}
+impl Time for Continuous {}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Discrete {}
+impl Time for Discrete {}
