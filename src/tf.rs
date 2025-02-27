@@ -1,4 +1,6 @@
+use core::fmt;
 use std::{
+    any::{Any, TypeId},
     marker::PhantomData,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
@@ -7,7 +9,7 @@ use std::{
 
 use crate::{
     polynom::RationalFunction,
-    traits::{One, Time, Zero},
+    traits::{Continuous, Discrete, One, Time, Zero},
 };
 
 #[derive(Clone, Debug)]
@@ -32,6 +34,23 @@ where
             rf,
             time: PhantomData::<U>,
         }
+    }
+}
+
+impl<T, U: Time + Any> fmt::Display for Tf<T, U>
+where
+    T: Zero + fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let var_name = if TypeId::of::<U>() == TypeId::of::<Continuous>() {
+            "s"
+        } else if TypeId::of::<U>() == TypeId::of::<Discrete>() {
+            "z"
+        } else {
+            "x"
+        };
+        let rf_str = self.rf.to_string_variable(var_name);
+        write!(f, "{}", rf_str)
     }
 }
 
@@ -107,7 +126,9 @@ where
     }
 }
 
-
+///////////////////////////////////////////////////////////////////////////////////
+/// TESTS
+///////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
     use crate::traits::Continuous;
@@ -127,5 +148,6 @@ mod tests {
             assert_abs_diff_eq!(y.re, y_expect.re);
             assert_abs_diff_eq!(y.im, y_expect.im);
         }
+        println!("Tf cont: \n{}", tf);
     }
 }

@@ -1,6 +1,10 @@
 use crate::traits::{One, Zero};
-use std::ops::{
-    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
+use core::fmt;
+use std::{
+    fmt::write,
+    ops::{
+        Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
+    },
 };
 
 /////////////////////////////////////////////////////////
@@ -46,16 +50,53 @@ where
 
 impl<T> Polynomial<T>
 where
+    T: Zero + fmt::Display,
+{
+    pub fn to_string_variable(&self, var_name: &str) -> String {
+        let mut terms = Vec::new();
+        for (idx, val) in self.coeffs.iter().rev().enumerate() {
+            if val.is_zero() {
+                continue;
+            }
+
+            let exp = self.coeffs.len() - idx - 1;
+
+            let term_i = match exp {
+                0 => val.to_string(),
+                1 => format!("{}{}", val, var_name),
+                _ => format!("{}{}^{}", val, var_name, exp),
+            };
+            terms.push(term_i);
+        }
+
+        let res = terms.join(" + ").replace("+ -", "- ");
+        res
+    }
+}
+
+impl<T> fmt::Display for Polynomial<T>
+where
+    T: Zero + fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str_poly = self.to_string_variable("x");
+        write!(f, "{}", str_poly)
+    }
+}
+
+impl<T> Polynomial<T>
+where
     T: One + Zero + Mul<Output = T> + AddAssign + Clone,
 {
-    pub fn eval(&self, x: &T) -> T {
-        let mut x_i = T::one();
-        let mut sum = T::zero();
-        for coeff_i in self.coeffs.iter() {
-            sum += coeff_i.clone() * x_i.clone();
-            x_i = x_i * x.clone();
-        }
-        sum
+    pub fn eval<N>(&self, x: &N) -> N
+    where
+        N: Clone + One + Zero + Mul<N, Output = N> + Add<T, Output = N>,
+    {
+        // a + bx + cx^2 ... = a + x(b + x(c + ...))
+        self.coeffs
+            .iter()
+            .rev()
+            .fold(N::zero(), |acc, coeff_i| acc * x.clone() + coeff_i.clone())
     }
 }
 
@@ -257,9 +298,41 @@ where
 
 impl<T> RationalFunction<T>
 where
-    T: One + Zero + Mul<Output = T> + Div<Output = T> + AddAssign + Clone,
+    T: Zero + fmt::Display,
 {
-    pub fn eval(&self, x: &T) -> T {
+    pub fn to_string_variable(&self, var_name: &str) -> String {
+        let num_str = self.num.to_string_variable(var_name);
+        let den_str = self.den.to_string_variable(var_name);
+
+        let dash_line = "\u{2500}".repeat(num_str.len().max(den_str.len()));
+
+        let rf_str = num_str + "\n" + &dash_line + "\n" + &den_str;
+        rf_str
+    }
+}
+
+impl<T> fmt::Display for RationalFunction<T>
+where
+    T: Zero + fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_string_variable("x"))
+    }
+}
+
+impl<T> RationalFunction<T>
+where
+    T: One + Zero + Mul<Output = T> + AddAssign + Clone,
+{
+    pub fn eval<N>(&self, x: &N) -> N
+    where
+        N: Clone
+            + One
+            + Zero
+            + Mul<N, Output = N>
+            + Add<T, Output = N>
+            + Div<Output = N>,
+    {
         let num_val = self.num.eval(x);
         let den_val = self.den.eval(x);
         num_val / den_val
@@ -518,6 +591,12 @@ mod tests {
                 epsilon = 1e-3
             );
         }
+
+        {
+            println!("poly: {}", p);
+            let p_str = p.to_string();
+            println!("poly to string: {}", p_str);
+        }
     }
 
     #[test]
@@ -560,6 +639,8 @@ mod tests {
         assert_abs_diff_eq!(rf.den.coeffs.last().unwrap().clone(), 1.0);
         assert_abs_diff_eq!(rf.num.coeffs[0], 1.0);
         assert_abs_diff_eq!(rf.num.coeffs.last().unwrap().clone(), 3.0);
+
+        println!("Rational function normalize: \n{}", rf);
     }
 
     #[test]
