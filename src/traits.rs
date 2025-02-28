@@ -61,6 +61,54 @@ impl_traits!(
     num_complex::c64(1.0, 0.0)
 );
 
+pub trait ToDecibel {
+    fn to_db(&self) -> Self;
+}
+
+impl ToDecibel for f64 {
+    fn to_db(&self) -> Self {
+        20.*self.log10()
+    }
+}
+
+impl  ToDecibel for f32 {
+    fn to_db(&self) -> Self {
+        20.*self.log10()
+    }
+}
+
+pub trait Rad2Deg {
+    fn rad2deg(&self) -> Self;
+}
+
+pub trait Deg2Rad {
+    fn deg2rad(&self) -> Self;
+}
+
+impl Rad2Deg for f64 {
+    fn rad2deg(&self) -> Self {
+        self * 180./std::f64::consts::PI
+    }
+}
+
+impl Rad2Deg for f32 {
+    fn rad2deg(&self) -> Self {
+        self * 180./std::f32::consts::PI
+    }
+}
+
+impl Deg2Rad for f64 {
+    fn deg2rad(&self) -> Self {
+        self * std::f64::consts::PI / 180.
+    }
+}
+
+impl Deg2Rad for f32 {
+    fn deg2rad(&self) -> Self {
+        self * std::f32::consts::PI / 180.
+    }
+}
+
 pub trait Time: Clone + Debug {}
 
 #[derive(Clone, Copy, Debug, PartialEq)]

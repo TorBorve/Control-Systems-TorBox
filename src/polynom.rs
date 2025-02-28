@@ -1,10 +1,7 @@
 use crate::traits::{One, Zero};
 use core::fmt;
-use std::{
-    fmt::write,
-    ops::{
-        Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
-    },
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
 /////////////////////////////////////////////////////////
@@ -69,8 +66,7 @@ where
             terms.push(term_i);
         }
 
-        let res = terms.join(" + ").replace("+ -", "- ");
-        res
+        terms.join(" + ").replace("+ -", "- ")
     }
 }
 
@@ -306,8 +302,7 @@ where
 
         let dash_line = "\u{2500}".repeat(num_str.len().max(den_str.len()));
 
-        let rf_str = num_str + "\n" + &dash_line + "\n" + &den_str;
-        rf_str
+        num_str + "\n" + &dash_line + "\n" + &den_str
     }
 }
 
