@@ -1,11 +1,14 @@
 use core::f64;
 
+use num_complex::Complex64;
 use plotters::{
     chart::{ChartBuilder, LabelAreaPosition},
     prelude::{IntoDrawingArea, *},
     series::LineSeries,
     style::WHITE,
 };
+
+// See: https://github.com/wiseaidev/rust-data-analysis/blob/main/6-plotters-tutorial-part-1.ipynb
 
 fn color_order(idx: usize) -> RGBAColor {
     // Using same as MATLAB
@@ -91,8 +94,8 @@ impl BodePlot {
         let ([mag_min, mag_max], [phase_min, phase_max], [freq_min, freq_max]) =
             self.determine_axis_limits();
 
-        let freq_min = freq_min.log10();
-        let freq_max = freq_max.log10();
+        // let freq_min = freq_min.log10();
+        // let freq_max = freq_max.log10();
 
         let (mag_plot, phase_plot) =
             root.split_vertically(root.dim_in_pixel().1 / 2);
@@ -102,7 +105,7 @@ impl BodePlot {
             .margin(20)
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .set_label_area_size(LabelAreaPosition::Bottom, 40)
-            .build_cartesian_2d(freq_min..freq_max, mag_min..mag_max)
+            .build_cartesian_2d((freq_min..freq_max).log_scale(), mag_min..mag_max)
             .unwrap();
         mag_chart.configure_mesh().draw().unwrap();
         for (idx, data) in self.plot_data.iter().enumerate() {
@@ -111,7 +114,7 @@ impl BodePlot {
             let mag_data = data
                 .mag_phase_freq_points
                 .iter()
-                .map(|x| (x[2].log10(), x[0]));
+                .map(|x| (x[2], x[0]));
             let series = mag_chart
                 .draw_series(LineSeries::new(mag_data, color))
                 .unwrap();
@@ -134,7 +137,7 @@ impl BodePlot {
             .margin(20)
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .set_label_area_size(LabelAreaPosition::Bottom, 40)
-            .build_cartesian_2d(freq_min..freq_max, phase_min..phase_max)
+            .build_cartesian_2d((freq_min..freq_max).log_scale(), phase_min..phase_max)
             .unwrap();
         phase_chart.configure_mesh().draw().unwrap();
         for (idx, data) in self.plot_data.iter().enumerate() {
@@ -142,7 +145,7 @@ impl BodePlot {
             let phase_data = data
                 .mag_phase_freq_points
                 .iter()
-                .map(|x| (x[2].log10(), x[1]));
+                .map(|x| (x[2], x[1]));
             phase_chart
                 .draw_series(LineSeries::new(phase_data, color))
                 .unwrap();
@@ -180,17 +183,170 @@ impl BodePlot {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NyquistPlotData {
+    data_points: Vec<Complex64>,
+    name: String,
+    color: Option<RGBAColor>,
+}
+
+impl NyquistPlotData {
+    pub fn new(data_points: Vec<Complex64>) -> Self {
+        Self {
+            data_points,
+            name: "".to_string(),
+            color: None,
+        }
+    }
+
+    pub fn set_name(mut self, name: &str) -> Self {
+        self.name = name.to_string();
+        self
+    }
+
+    pub fn set_color(mut self, color: RGBAColor) -> Self {
+        self.color = Some(color);
+        self
+    }
+}
+
+impl From<Vec<Complex64>> for NyquistPlotData {
+    fn from(value: Vec<Complex64>) -> Self {
+        NyquistPlotData::new(value)
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct NyquistPlotOptions {
+    title: String,
+    x_limits: Option<[f64; 2]>,
+    y_limits: Option<[f64; 2]>,
+}
+
+impl NyquistPlotOptions {
+    pub fn set_title(mut self, title: &str) -> Self {
+        self.title = title.to_string();
+        self
+    }
+
+    pub fn set_x_limits(mut self, x_limits: [f64; 2]) -> Self {
+        self.x_limits = Some(x_limits);
+        self
+    }
+
+    pub fn set_y_limits(mut self, y_limits: [f64; 2]) -> Self {
+        self.y_limits = Some(y_limits);
+        self
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct NyquistPlot {
+    options: NyquistPlotOptions,
+    plot_data: Vec<NyquistPlotData>,
+}
+
+impl NyquistPlot {
+    pub fn new(options: NyquistPlotOptions) -> Self {
+        Self {
+            options,
+            plot_data: vec![],
+        }
+    }
+
+    pub fn add_system(&mut self, data: NyquistPlotData) -> &mut Self {
+        self.plot_data.push(data);
+        self
+    }
+
+    pub fn plot<B: DrawingBackend>(
+        &self,
+        backend: B,
+    ) -> Result<(), Box<dyn std::error::Error>>
+    where
+        B::ErrorType: std::error::Error + 'static,
+    {
+        let ([x_min, x_max], [y_min, y_max]) =
+            NyquistPlot::determine_axis_limits(
+                self.plot_data
+                    .iter()
+                    .flat_map(|data| data.data_points.iter()),
+                self.options.x_limits,
+                self.options.y_limits,
+            );
+
+        let root = backend.into_drawing_area();
+        root.fill(&WHITE)?;
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption(&self.options.title, ("sans-serif", 30))
+            .margin(20)
+            .set_label_area_size(LabelAreaPosition::Left, 40)
+            .set_label_area_size(LabelAreaPosition::Bottom, 40)
+            .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
+        
+        chart.configure_mesh().draw()?;
+        for (idx, data) in self.plot_data.iter().enumerate() {
+            let color = data.color.unwrap_or(color_order(idx));
+
+            let plot_data = data.data_points.iter().map(|c| (c.re, c.im));
+            let series =
+                chart.draw_series(LineSeries::new(plot_data, color))?;
+
+            if !data.name.is_empty() {
+                series.label(&data.name).legend(move |(x, y)| {
+                    PathElement::new(vec![(x, y), (x + 20, y)], color)
+                });
+            }
+        }
+
+        chart
+            .configure_series_labels()
+            .background_style(&WHITE)
+            .border_style(&BLACK)
+            .draw()?;
+
+        // TODO: Draw marker for (-1, 0)
+        Ok(())
+    }
+
+    fn determine_axis_limits<'a, I>(
+        data: I,
+        x_limits: Option<[f64; 2]>,
+        y_limits: Option<[f64; 2]>,
+    ) -> ([f64; 2], [f64; 2])
+    where
+        I: Iterator<Item = &'a Complex64>,
+    {
+        let mut x_min_auto = f64::MAX;
+        let mut x_max_auto = f64::MIN;
+        let mut y_min_auto = f64::MAX;
+        let mut y_max_auto = f64::MIN;
+
+        for c in data {
+            x_min_auto = x_min_auto.min(c.re);
+            x_max_auto = x_max_auto.max(c.re);
+            y_min_auto = y_min_auto.min(c.im);
+            y_max_auto = y_max_auto.max(c.im);
+        }
+
+        let x_limits = x_limits.unwrap_or([x_min_auto, x_max_auto]);
+        let y_limits = y_limits.unwrap_or([y_min_auto, y_max_auto]);
+        (x_limits, y_limits)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
     use super::*;
-    use crate::{bode::bode, tf::Tf, traits::Continuous};
+    use crate::{frequency_response::{bode, nyquist}, tf::Tf, traits::Continuous};
     use gtk::{cairo, prelude::*};
     use plotters::style::full_palette::PURPLE;
     use plotters_svg::SVGBackend;
 
     #[test]
-    fn plot() {
+    fn bodeplot() {
         // let backend =plotters_cairo::CairoBackend::new();
         // let backend =
         //     plotters::backend::BitMapBackend::new("test_file.png", (2000,
@@ -227,7 +383,7 @@ mod tests {
         bodeplot.add_system(data);
 
         let mut data: BodePlotData = mag_phase_freq_vec.clone().into();
-        let data = data.set_color(BLACK.into()).set_name("TEST");
+        data = data.set_color(BLACK.into()).set_name("TEST");
         bodeplot.add_system(data);
 
         bodeplot.add_system(mag_phase_freq_vec.into());
@@ -240,12 +396,6 @@ mod tests {
             .collect();
 
         bodeplot.add_system(mag_phase_freq_vec.into());
-        // let bode_data = BodePlotData {
-        //     mag_phase_freq_points: mag_phase_freq_vec,
-        //     name: "HP".to_string(),
-        //     color: RED.to_rgba(),
-        // };
-        // bodeplot.add_system(bode_data);
 
         bodeplot.plot(backend).unwrap();
 
@@ -271,6 +421,79 @@ mod tests {
             window.show();
         });
 
+        // app.run();
+    }
+
+    #[test]
+    fn nyquistplot() {
+        let sys: Tf<f64, Continuous>  = Tf::new(&[1.0], &[0.0, 1.0]);
+
+        let pade: Tf<f64, Continuous> = Tf::new(&[1.0, -1.0], &[1.0, 1.0]);
+        let pade2 = pade.clone() * Tf::new(&[1.0, -0.5], &[1.0, 0.5]);
+        let sys_p1 = sys.clone() * pade;
+        let sys_p2 = sys.clone() * pade2;
+
+        let backend = SVGBackend::new("nyquist.svg", (800, 600));
+
+        let mut nyq_opts = NyquistPlotOptions::default();
+        nyq_opts = nyq_opts.set_x_limits([-5., 1.]).set_y_limits([-10., 10.]);
+        let mut nyq_plot = NyquistPlot::new(nyq_opts);
+        let nyq_data = nyquist(sys, 0.01, 100.);
+        nyq_plot.add_system(nyq_data.into());
+
+        let data = NyquistPlotData::new(nyquist(sys_p1, 0.01, 100.)).set_name("Pade 1");
+        nyq_plot.add_system(data);
+        let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.)).set_name("Pade 2");
+        nyq_plot.add_system(data);
+
+        nyq_plot.plot(backend).unwrap();
+        
+        // GTK
+        let app = gtk::Application::new(Some("gtk.demo"), Default::default());
+
+        // let bodeplot = std::rc::Rc::new(bodeplot);
+
+        app.connect_activate(move |app| {
+            let window = gtk::ApplicationWindow::new(app);
+            window.set_title(Some("Bodeplot"));
+            window.set_default_size(800, 600);
+
+            let draw_area = gtk::DrawingArea::new();
+            let nyq_plot = nyq_plot.clone();
+            draw_area.set_draw_func(move |_, cr: &cairo::Context, _, _| {
+                let backend =
+                    plotters_cairo::CairoBackend::new(cr, (800, 600)).unwrap();
+                nyq_plot.plot(backend).unwrap();
+            });
+
+            window.set_child(Some(&draw_area));
+            window.show();
+        });
+
         app.run();
+
+
+
+        let backend = SVGBackend::new("example.svg", (800, 600));
+
+        let root = backend.into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption("10 * x", ("sans-serif", 30))
+            .margin(20)
+            .build_cartesian_2d(-10f64..10f64, -10f64..10f64)
+            .unwrap();
+
+        chart.configure_mesh().draw().unwrap();
+
+        let data: Vec<(f64, f64)> = (-1000..=1000)
+            .map(|x| x as f64 / 1000.0)
+            .map(|x| (x, 10.0 * x))
+            .collect();
+
+        chart.draw_series(LineSeries::new(data, &RED)).unwrap();
+
+        root.present().unwrap();
     }
 }
