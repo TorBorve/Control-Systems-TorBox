@@ -10,6 +10,7 @@ use plotters::{
 
 // See: https://github.com/wiseaidev/rust-data-analysis/blob/main/6-plotters-tutorial-part-1.ipynb
 
+#[allow(clippy::approx_constant)]
 fn color_order(idx: usize) -> RGBAColor {
     // Using same as MATLAB
     let colors = [
@@ -105,16 +106,17 @@ impl BodePlot {
             .margin(20)
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .set_label_area_size(LabelAreaPosition::Bottom, 40)
-            .build_cartesian_2d((freq_min..freq_max).log_scale(), mag_min..mag_max)
+            .build_cartesian_2d(
+                (freq_min..freq_max).log_scale(),
+                mag_min..mag_max,
+            )
             .unwrap();
         mag_chart.configure_mesh().draw().unwrap();
         for (idx, data) in self.plot_data.iter().enumerate() {
             let color = data.color.unwrap_or(color_order(idx));
 
-            let mag_data = data
-                .mag_phase_freq_points
-                .iter()
-                .map(|x| (x[2], x[0]));
+            let mag_data =
+                data.mag_phase_freq_points.iter().map(|x| (x[2], x[0]));
             let series = mag_chart
                 .draw_series(LineSeries::new(mag_data, color))
                 .unwrap();
@@ -127,8 +129,8 @@ impl BodePlot {
 
             mag_chart
                 .configure_series_labels()
-                .background_style(&WHITE)
-                .border_style(&BLACK)
+                .background_style(WHITE)
+                .border_style(BLACK)
                 .draw()
                 .unwrap();
         }
@@ -137,15 +139,16 @@ impl BodePlot {
             .margin(20)
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .set_label_area_size(LabelAreaPosition::Bottom, 40)
-            .build_cartesian_2d((freq_min..freq_max).log_scale(), phase_min..phase_max)
+            .build_cartesian_2d(
+                (freq_min..freq_max).log_scale(),
+                phase_min..phase_max,
+            )
             .unwrap();
         phase_chart.configure_mesh().draw().unwrap();
         for (idx, data) in self.plot_data.iter().enumerate() {
             let color = data.color.unwrap_or(color_order(idx));
-            let phase_data = data
-                .mag_phase_freq_points
-                .iter()
-                .map(|x| (x[2], x[1]));
+            let phase_data =
+                data.mag_phase_freq_points.iter().map(|x| (x[2], x[1]));
             phase_chart
                 .draw_series(LineSeries::new(phase_data, color))
                 .unwrap();
@@ -284,7 +287,7 @@ impl NyquistPlot {
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .set_label_area_size(LabelAreaPosition::Bottom, 40)
             .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
-        
+
         chart.configure_mesh().draw()?;
         for (idx, data) in self.plot_data.iter().enumerate() {
             let color = data.color.unwrap_or(color_order(idx));
@@ -302,8 +305,8 @@ impl NyquistPlot {
 
         chart
             .configure_series_labels()
-            .background_style(&WHITE)
-            .border_style(&BLACK)
+            .background_style(WHITE)
+            .border_style(BLACK)
             .draw()?;
 
         // TODO: Draw marker for (-1, 0)
@@ -340,7 +343,11 @@ impl NyquistPlot {
 mod tests {
 
     use super::*;
-    use crate::{frequency_response::{bode, nyquist}, tf::Tf, traits::Continuous};
+    use crate::{
+        frequency_response::{bode, nyquist},
+        tf::Tf,
+        traits::Continuous,
+    };
     use gtk::{cairo, prelude::*};
     use plotters::style::full_palette::PURPLE;
     use plotters_svg::SVGBackend;
@@ -426,7 +433,7 @@ mod tests {
 
     #[test]
     fn nyquistplot() {
-        let sys: Tf<f64, Continuous>  = Tf::new(&[1.0], &[0.0, 1.0]);
+        let sys: Tf<f64, Continuous> = Tf::new(&[1.0], &[0.0, 1.0]);
 
         let pade: Tf<f64, Continuous> = Tf::new(&[1.0, -1.0], &[1.0, 1.0]);
         let pade2 = pade.clone() * Tf::new(&[1.0, -0.5], &[1.0, 0.5]);
@@ -441,13 +448,15 @@ mod tests {
         let nyq_data = nyquist(sys, 0.01, 100.);
         nyq_plot.add_system(nyq_data.into());
 
-        let data = NyquistPlotData::new(nyquist(sys_p1, 0.01, 100.)).set_name("Pade 1");
+        let data = NyquistPlotData::new(nyquist(sys_p1, 0.01, 100.))
+            .set_name("Pade 1");
         nyq_plot.add_system(data);
-        let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.)).set_name("Pade 2");
+        let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.))
+            .set_name("Pade 2");
         nyq_plot.add_system(data);
 
         nyq_plot.plot(backend).unwrap();
-        
+
         // GTK
         let app = gtk::Application::new(Some("gtk.demo"), Default::default());
 
@@ -471,8 +480,6 @@ mod tests {
         });
 
         app.run();
-
-
 
         let backend = SVGBackend::new("example.svg", (800, 600));
 

@@ -67,13 +67,13 @@ pub trait ToDecibel {
 
 impl ToDecibel for f64 {
     fn to_db(&self) -> Self {
-        20.*self.log10()
+        20. * self.log10()
     }
 }
 
-impl  ToDecibel for f32 {
+impl ToDecibel for f32 {
     fn to_db(&self) -> Self {
-        20.*self.log10()
+        20. * self.log10()
     }
 }
 
@@ -87,13 +87,13 @@ pub trait Deg2Rad {
 
 impl Rad2Deg for f64 {
     fn rad2deg(&self) -> Self {
-        self * 180./std::f64::consts::PI
+        self * 180. / std::f64::consts::PI
     }
 }
 
 impl Rad2Deg for f32 {
     fn rad2deg(&self) -> Self {
-        self * 180./std::f32::consts::PI
+        self * 180. / std::f32::consts::PI
     }
 }
 

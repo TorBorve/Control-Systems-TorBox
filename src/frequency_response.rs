@@ -5,13 +5,13 @@ use crate::{
     traits::{Rad2Deg, Time, ToDecibel},
 };
 
-fn lin_space(start: f64, end: f64, n: usize) -> Vec<f64> {
+pub fn lin_space(start: f64, end: f64, n: usize) -> Vec<f64> {
     assert!(n > 1, "n must be greater than one");
     let step = (end - start) / (n as f64 - 1.0);
     (0..n).map(|i| start + step * i as f64).collect()
 }
 
-fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
+pub fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
     assert!(
         start > 0.,
         "logarithm of negative numbers are not implemented"
@@ -54,16 +54,21 @@ pub fn bode_freqs<U: Time>(
     (mag_vec, phase_vec)
 }
 
-pub fn nyquist<U: Time>(sys: Tf<f64, U>, min_freq: f64, max_freq: f64) -> Vec<Complex64> {
+pub fn nyquist<U: Time>(
+    sys: Tf<f64, U>,
+    min_freq: f64,
+    max_freq: f64,
+) -> Vec<Complex64> {
     let freqs = log_space(min_freq, max_freq, 10000, 10);
     nyquist_freqs(sys, freqs.as_slice())
 }
 
-pub fn nyquist_freqs<U: Time>(sys: Tf<f64, U>, freqs: &[f64]) -> Vec<Complex64> {
-    
+pub fn nyquist_freqs<U: Time>(
+    sys: Tf<f64, U>,
+    freqs: &[f64],
+) -> Vec<Complex64> {
     let pos_freqs = freqs.iter().map(|freq| sys.eval(&c64(0., *freq)));
     let neg_freqs = freqs.iter().rev().map(|freq| sys.eval(&c64(0., -*freq)));
 
     pos_freqs.chain(neg_freqs).collect()
-
 }
