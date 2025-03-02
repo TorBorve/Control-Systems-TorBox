@@ -1,4 +1,4 @@
-use num_complex::c64;
+use num_complex::{c64, Complex64};
 
 use crate::{
     tf::Tf,
@@ -52,4 +52,18 @@ pub fn bode_freqs<U: Time>(
         phase_vec.push(sys_val.arg().rad2deg());
     }
     (mag_vec, phase_vec)
+}
+
+pub fn nyquist<U: Time>(sys: Tf<f64, U>, min_freq: f64, max_freq: f64) -> Vec<Complex64> {
+    let freqs = log_space(min_freq, max_freq, 10000, 10);
+    nyquist_freqs(sys, freqs.as_slice())
+}
+
+pub fn nyquist_freqs<U: Time>(sys: Tf<f64, U>, freqs: &[f64]) -> Vec<Complex64> {
+    
+    let pos_freqs = freqs.iter().map(|freq| sys.eval(&c64(0., *freq)));
+    let neg_freqs = freqs.iter().rev().map(|freq| sys.eval(&c64(0., -*freq)));
+
+    pos_freqs.chain(neg_freqs).collect()
+
 }
