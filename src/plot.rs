@@ -1,5 +1,7 @@
 use core::f64;
 
+use egui::Color32;
+use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
 use num_complex::Complex64;
 use plotters::{
     chart::{ChartBuilder, LabelAreaPosition},
@@ -64,6 +66,25 @@ impl From<Vec<[f64; 3]>> for BodePlotData {
 pub struct BodePlotOptions {
     title: String,
     x_limits: Option<[f64; 2]>,
+}
+
+impl BodePlotOptions {
+    pub fn new(title: &str) -> Self {
+        Self {
+            title: title.to_string(),
+            x_limits: None,
+        }
+    }
+
+    pub fn set_title(mut self, title: &str) -> Self {
+        self.title = title.to_string();
+        self
+    }
+
+    pub fn set_x_limits(mut self, x_limits: [f64; 2]) -> Self {
+        self.x_limits = Some(x_limits);
+        self
+    }
 }
 
 #[derive(Default, Clone)]
@@ -339,6 +360,69 @@ impl NyquistPlot {
     }
 }
 
+pub struct NyquistPlotEgui {
+    nyq: NyquistPlot,
+    init: bool,
+}
+
+impl NyquistPlotEgui {
+    pub fn new(nyq: NyquistPlot) -> Self {
+        Self { nyq, init: false }
+    }
+}
+
+impl From<NyquistPlot> for NyquistPlotEgui {
+    fn from(value: NyquistPlot) -> Self {
+        Self::new(value)
+    }
+}
+
+impl eframe::App for NyquistPlotEgui {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let plot = Plot::new("Nyquist Plot").legend(Legend::default());
+            plot.show(ui, |plot_ui| {
+                if !self.init {
+                    let mut bounds = plot_ui.plot_bounds();
+                    if let Some([x_min, x_max]) = self.nyq.options.x_limits {
+                        bounds.set_x(&PlotBounds::from_min_max(
+                            [x_min, x_min],
+                            [x_max, x_max],
+                        ));
+                    }
+                    if let Some([y_min, y_max]) = self.nyq.options.y_limits {
+                        bounds.set_y(&PlotBounds::from_min_max(
+                            [y_min, y_min],
+                            [y_max, y_max],
+                        ));
+                    }
+                    plot_ui.set_plot_bounds(bounds);
+                }
+                for data in &self.nyq.plot_data {
+                    let plot_points = PlotPoints::from_iter(
+                        data.data_points.iter().map(|c| [c.re, c.im]),
+                    );
+                    let mut line = Line::new(plot_points);
+                    if !data.name.is_empty() {
+                        line = line.name(data.name.clone());
+                    }
+                    if let Some(color) = data.color {
+                        let color = Color32::from_rgba_premultiplied(
+                            color.0,
+                            color.1,
+                            color.2,
+                            (color.3 * 255.) as u8,
+                        );
+                        line = line.color(color);
+                    }
+                    plot_ui.line(line);
+                }
+            });
+        });
+        self.init = true;
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -458,28 +542,37 @@ mod tests {
         nyq_plot.plot(backend).unwrap();
 
         // GTK
-        let app = gtk::Application::new(Some("gtk.demo"), Default::default());
+        // let app = gtk::Application::new(Some("gtk.demo"),
+        // Default::default());
 
-        // let bodeplot = std::rc::Rc::new(bodeplot);
+        // // let bodeplot = std::rc::Rc::new(bodeplot);
 
-        app.connect_activate(move |app| {
-            let window = gtk::ApplicationWindow::new(app);
-            window.set_title(Some("Bodeplot"));
-            window.set_default_size(800, 600);
+        // app.connect_activate(move |app| {
+        //     let window = gtk::ApplicationWindow::new(app);
+        //     window.set_title(Some("Bodeplot"));
+        //     window.set_default_size(800, 600);
 
-            let draw_area = gtk::DrawingArea::new();
-            let nyq_plot = nyq_plot.clone();
-            draw_area.set_draw_func(move |_, cr: &cairo::Context, _, _| {
-                let backend =
-                    plotters_cairo::CairoBackend::new(cr, (800, 600)).unwrap();
-                nyq_plot.plot(backend).unwrap();
-            });
+        //     let draw_area = gtk::DrawingArea::new();
+        //     let nyq_plot = nyq_plot.clone();
+        //     draw_area.set_draw_func(move |_, cr: &cairo::Context, _, _| {
+        //         let backend =
+        //             plotters_cairo::CairoBackend::new(cr, (800,
+        // 600)).unwrap();         nyq_plot.plot(backend).unwrap();
+        //     });
 
-            window.set_child(Some(&draw_area));
-            window.show();
-        });
+        //     window.set_child(Some(&draw_area));
+        //     window.show();
+        // });
 
-        app.run();
+        // app.run();
+
+        // let opts = eframe::NativeOptions {
+        //     viewport: egui::ViewportBuilder::default().with_inner_size([350.,
+        // 200.]),     ..Default::default()
+        // };
+        // let nyq_plot_clone = nyq_plot.clone();
+        // eframe::run_native("Nyqust Plot", opts, Box::new(move |_cc|
+        // Ok(Box::new(nyq_plot_clone)) )).unwrap();
 
         let backend = SVGBackend::new("example.svg", (800, 600));
 
