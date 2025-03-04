@@ -1,7 +1,7 @@
 use core::f64;
 
 use egui::Color32;
-use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
+use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints, log_grid_spacer};
 use num_complex::Complex64;
 use plotters::{
     chart::{ChartBuilder, LabelAreaPosition},
@@ -9,6 +9,8 @@ use plotters::{
     series::LineSeries,
     style::WHITE,
 };
+
+use crate::frequency_response::lin_space;
 
 // See: https://github.com/wiseaidev/rust-data-analysis/blob/main/6-plotters-tutorial-part-1.ipynb
 
@@ -207,6 +209,132 @@ impl BodePlot {
     }
 }
 
+#[derive(Clone)]
+pub struct BodePlotEgui {
+    bode: BodePlot,
+    init: bool,
+}
+
+impl BodePlotEgui {
+    pub fn new(bode: BodePlot) -> Self {
+        Self { bode, init: false }
+    }
+}
+
+impl From<BodePlot> for BodePlotEgui {
+    fn from(value: BodePlot) -> Self {
+        Self::new(value)
+    }
+}
+
+impl eframe::App for BodePlotEgui {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let plot_height = ui.available_height() / 2.0;
+            // let mut x_bounds = None;
+            ui.vertical(|ui| {
+                ui.add_sized(
+                    [ui.available_width(), plot_height],
+                    |ui: &mut egui::Ui| -> egui::Response {
+                        let mag_plot = Plot::new("Magnitude Plot")
+                            .legend(Legend::default());
+                        let resp = mag_plot.show(ui, |plot_ui| {
+                            if !self.init {
+                                let mut bounds = plot_ui.plot_bounds();
+                                if let Some([x_min, x_max]) =
+                                    self.bode.options.x_limits
+                                {
+                                    bounds.set_x(&PlotBounds::from_min_max(
+                                        [x_min, x_min],
+                                        [x_max, x_max],
+                                    ));
+                                }
+                                plot_ui.set_plot_bounds(bounds);
+                            }
+
+                            for data in &self.bode.plot_data {
+                                let plot_points = PlotPoints::from_iter(
+                                    data.mag_phase_freq_points
+                                        .iter()
+                                        .map(|p| [p[2].log10(), p[0]]),
+                                );
+                                let mut line = Line::new(plot_points);
+                                if !data.name.is_empty() {
+                                    line = line.name(data.name.clone());
+                                }
+                                if let Some(color) = data.color {
+                                    let color =
+                                        Color32::from_rgba_premultiplied(
+                                            color.0,
+                                            color.1,
+                                            color.2,
+                                            (color.3 * 255.) as u8,
+                                        );
+                                    line = line.color(color);
+                                }
+                                plot_ui.line(line);
+                            }
+                        });
+                        resp.response
+                    },
+                );
+
+                ui.add_sized(
+                    [ui.available_width(), plot_height],
+                    |ui: &mut egui::Ui| -> egui::Response {
+                        let mag_plot =
+                            Plot::new("Phase Plot").legend(Legend::default());
+                        mag_plot
+                            .show(ui, |plot_ui| {
+                                if !self.init {
+                                    let mut bounds = plot_ui.plot_bounds();
+                                    if let Some([x_min, x_max]) =
+                                        self.bode.options.x_limits
+                                    {
+                                        bounds.set_x(
+                                            &PlotBounds::from_min_max(
+                                                [x_min, x_min],
+                                                [x_max, x_max],
+                                            ),
+                                        );
+                                    }
+                                    plot_ui.set_plot_bounds(bounds);
+                                }
+                                for data in &self.bode.plot_data {
+                                    let plot_points = PlotPoints::from_iter(
+                                        data.mag_phase_freq_points
+                                            .iter()
+                                            .map(|p| [p[2].log10(), p[1]]),
+                                    );
+                                    let mut line = Line::new(plot_points);
+                                    if !data.name.is_empty() {
+                                        line = line.name(data.name.clone());
+                                    }
+                                    if let Some(color) = data.color {
+                                        let color =
+                                            Color32::from_rgba_premultiplied(
+                                                color.0,
+                                                color.1,
+                                                color.2,
+                                                (color.3 * 255.) as u8,
+                                            );
+                                        line = line.color(color);
+                                    }
+                                    plot_ui.line(line);
+                                }
+                            })
+                            .response
+                    },
+                );
+            });
+        });
+        self.init = true;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+/// Nyquist
+//////////////////////////////////////////////////////////////////////////////////////////////
 #[derive(Clone, Debug)]
 pub struct NyquistPlotData {
     data_points: Vec<Complex64>,
