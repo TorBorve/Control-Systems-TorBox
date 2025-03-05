@@ -1,10 +1,8 @@
 use core::f64;
 
 use egui::Color32;
-use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
+use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
-
-// See: https://github.com/wiseaidev/rust-data-analysis/blob/main/6-plotters-tutorial-part-1.ipynb
 
 #[derive(Clone, Copy, Debug)]
 pub struct RGBAColor {
@@ -14,25 +12,98 @@ pub struct RGBAColor {
     pub a: u8,
 }
 
-
 impl RGBAColor {
     // Common colors
-    pub const WHITE: RGBAColor = RGBAColor { r: 255, g: 255, b: 255, a: 255 };
-    pub const BLACK: RGBAColor = RGBAColor { r: 0, g: 0, b: 0, a: 255 };
-    pub const BLUE: RGBAColor = RGBAColor { r: 0, g: 0, b: 255, a: 255 };
-    pub const RED: RGBAColor = RGBAColor { r: 255, g: 0, b: 0, a: 255 };
-    pub const GREEN: RGBAColor = RGBAColor { r: 0, g: 255, b: 0, a: 255 };
-    pub const YELLOW: RGBAColor = RGBAColor { r: 255, g: 255, b: 0, a: 255 };
-    pub const CYAN: RGBAColor = RGBAColor { r: 0, g: 255, b: 255, a: 255 };
-    pub const MAGENTA: RGBAColor = RGBAColor { r: 255, g: 0, b: 255, a: 255 };
-    pub const ORANGE: RGBAColor = RGBAColor { r: 255, g: 165, b: 0, a: 255 };
-    pub const PURPLE: RGBAColor = RGBAColor { r: 128, g: 0, b: 128, a: 255 };
-    pub const BROWN: RGBAColor = RGBAColor { r: 165, g: 42, b: 42, a: 255 };
-    pub const PINK: RGBAColor = RGBAColor { r: 255, g: 192, b: 203, a: 255 };
-    pub const GRAY: RGBAColor = RGBAColor { r: 128, g: 128, b: 128, a: 255 };
-    pub const LIGHT_GRAY: RGBAColor = RGBAColor { r: 211, g: 211, b: 211, a: 255 };
-    pub const DARK_GRAY: RGBAColor = RGBAColor { r: 169, g: 169, b: 169, a: 255 };
-
+    pub const WHITE: RGBAColor = RGBAColor {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const BLACK: RGBAColor = RGBAColor {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const BLUE: RGBAColor = RGBAColor {
+        r: 0,
+        g: 0,
+        b: 255,
+        a: 255,
+    };
+    pub const RED: RGBAColor = RGBAColor {
+        r: 255,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const GREEN: RGBAColor = RGBAColor {
+        r: 0,
+        g: 255,
+        b: 0,
+        a: 255,
+    };
+    pub const YELLOW: RGBAColor = RGBAColor {
+        r: 255,
+        g: 255,
+        b: 0,
+        a: 255,
+    };
+    pub const CYAN: RGBAColor = RGBAColor {
+        r: 0,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const MAGENTA: RGBAColor = RGBAColor {
+        r: 255,
+        g: 0,
+        b: 255,
+        a: 255,
+    };
+    pub const ORANGE: RGBAColor = RGBAColor {
+        r: 255,
+        g: 165,
+        b: 0,
+        a: 255,
+    };
+    pub const PURPLE: RGBAColor = RGBAColor {
+        r: 128,
+        g: 0,
+        b: 128,
+        a: 255,
+    };
+    pub const BROWN: RGBAColor = RGBAColor {
+        r: 165,
+        g: 42,
+        b: 42,
+        a: 255,
+    };
+    pub const PINK: RGBAColor = RGBAColor {
+        r: 255,
+        g: 192,
+        b: 203,
+        a: 255,
+    };
+    pub const GRAY: RGBAColor = RGBAColor {
+        r: 128,
+        g: 128,
+        b: 128,
+        a: 255,
+    };
+    pub const LIGHT_GRAY: RGBAColor = RGBAColor {
+        r: 211,
+        g: 211,
+        b: 211,
+        a: 255,
+    };
+    pub const DARK_GRAY: RGBAColor = RGBAColor {
+        r: 169,
+        g: 169,
+        b: 169,
+        a: 255,
+    };
 
     pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self {
@@ -43,12 +114,12 @@ impl RGBAColor {
         }
     }
 
-    fn to_egui(&self) -> Color32 {
+    fn to_egui(self) -> Color32 {
         Color32::from_rgba_premultiplied(self.r, self.g, self.b, self.a)
     }
 }
 
-#[allow(clippy::approx_constant)]
+#[allow(clippy::approx_constant, unused)]
 fn color_order(idx: usize) -> RGBAColor {
     // Using same as MATLAB
     let colors = [
@@ -165,7 +236,6 @@ impl eframe::App for BodePlotEgui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let plot_height = ui.available_height() / 2.0;
-            // let mut x_bounds = None;
             ui.vertical(|ui| {
                 ui.add_sized(
                     [ui.available_width(), plot_height],
@@ -174,33 +244,22 @@ impl eframe::App for BodePlotEgui {
                             .legend(Legend::default());
                         let resp = mag_plot.show(ui, |plot_ui| {
                             if !self.init {
-                                let mut bounds = plot_ui.plot_bounds();
-                                if let Some([x_min, x_max]) =
-                                    self.bode.options.x_limits
-                                {
-                                    bounds.set_x(&PlotBounds::from_min_max(
-                                        [x_min, x_min],
-                                        [x_max, x_max],
-                                    ));
-                                }
+                                let bounds = BodePlotEgui::get_mag_bounds(
+                                    self.bode.options.x_limits,
+                                    None,
+                                    self.bode.plot_data.iter().flat_map(
+                                        |data| {
+                                            data.mag_phase_freq_points.iter()
+                                        },
+                                    ),
+                                );
                                 plot_ui.set_plot_bounds(bounds);
                             }
 
-                            for data in &self.bode.plot_data {
-                                let plot_points = PlotPoints::from_iter(
-                                    data.mag_phase_freq_points
-                                        .iter()
-                                        .map(|p| [p[2].log10(), p[0]]),
-                                );
-                                let mut line = Line::new(plot_points);
-                                if !data.name.is_empty() {
-                                    line = line.name(data.name.clone());
-                                }
-                                if let Some(color) = data.color {
-                                    line = line.color(color.to_egui());
-                                }
-                                plot_ui.line(line);
-                            }
+                            BodePlotEgui::plot_mag_data(
+                                plot_ui,
+                                &self.bode.plot_data,
+                            );
                         });
                         resp.response
                     },
@@ -214,34 +273,22 @@ impl eframe::App for BodePlotEgui {
                         mag_plot
                             .show(ui, |plot_ui| {
                                 if !self.init {
-                                    let mut bounds = plot_ui.plot_bounds();
-                                    if let Some([x_min, x_max]) =
-                                        self.bode.options.x_limits
-                                    {
-                                        bounds.set_x(
-                                            &PlotBounds::from_min_max(
-                                                [x_min, x_min],
-                                                [x_max, x_max],
-                                            ),
-                                        );
-                                    }
+                                    let bounds = BodePlotEgui::get_phase_bounds(
+                                        self.bode.options.x_limits,
+                                        None,
+                                        self.bode.plot_data.iter().flat_map(
+                                            |data| {
+                                                data.mag_phase_freq_points
+                                                    .iter()
+                                            },
+                                        ),
+                                    );
                                     plot_ui.set_plot_bounds(bounds);
                                 }
-                                for data in &self.bode.plot_data {
-                                    let plot_points = PlotPoints::from_iter(
-                                        data.mag_phase_freq_points
-                                            .iter()
-                                            .map(|p| [p[2].log10(), p[1]]),
-                                    );
-                                    let mut line = Line::new(plot_points);
-                                    if !data.name.is_empty() {
-                                        line = line.name(data.name.clone());
-                                    }
-                                    if let Some(color) = data.color {
-                                        line = line.color(color.to_egui());
-                                    }
-                                    plot_ui.line(line);
-                                }
+                                BodePlotEgui::plot_phase_data(
+                                    plot_ui,
+                                    &self.bode.plot_data,
+                                );
                             })
                             .response
                     },
@@ -250,6 +297,117 @@ impl eframe::App for BodePlotEgui {
         });
         self.init = true;
     }
+}
+
+impl BodePlotEgui {
+    fn plot_mag_data(plot_ui: &mut PlotUi, data: &[BodePlotData]) {
+        for data_i in data {
+            let plot_points = PlotPoints::from_iter(
+                data_i
+                    .mag_phase_freq_points
+                    .iter()
+                    .map(|p| [p[2].log10(), p[0]]),
+            );
+            let mut line = Line::new(plot_points);
+            line = set_name_and_color_line(line, &data_i.name, &data_i.color);
+            plot_ui.line(line);
+        }
+    }
+
+    fn get_mag_bounds<'a, I>(
+        x_limits: Option<[f64; 2]>,
+        y_limits: Option<[f64; 2]>,
+        data: I,
+    ) -> PlotBounds
+    where
+        I: Iterator<Item = &'a [f64; 3]>,
+    {
+        let xy_iter =
+            data.map(|mag_phase_freq| [mag_phase_freq[2], mag_phase_freq[0]]);
+        let bounds = get_2d_plot_bounds(x_limits, y_limits, xy_iter);
+        let [x_min, y_min] = bounds.min();
+        let [x_max, y_max] = bounds.max();
+        PlotBounds::from_min_max([x_min.log10(), y_min], [x_max.log10(), y_max])
+    }
+
+    fn get_phase_bounds<'a, I>(
+        x_limits: Option<[f64; 2]>,
+        y_limits: Option<[f64; 2]>,
+        data: I,
+    ) -> PlotBounds
+    where
+        I: Iterator<Item = &'a [f64; 3]>,
+    {
+        let xy_iter =
+            data.map(|mag_phase_freq| [mag_phase_freq[2], mag_phase_freq[1]]);
+        let bounds = get_2d_plot_bounds(x_limits, y_limits, xy_iter);
+        let [x_min, y_min] = bounds.min();
+        let [x_max, y_max] = bounds.max();
+        PlotBounds::from_min_max([x_min.log10(), y_min], [x_max.log10(), y_max])
+    }
+
+    fn plot_phase_data(plot_ui: &mut PlotUi, data: &[BodePlotData]) {
+        for data_i in data {
+            let plot_points = PlotPoints::from_iter(
+                data_i
+                    .mag_phase_freq_points
+                    .iter()
+                    .map(|p| [p[2].log10(), p[1]]),
+            );
+            let mut line: Line<'_> = Line::new(plot_points);
+            line = set_name_and_color_line(line, &data_i.name, &data_i.color);
+            plot_ui.line(line);
+        }
+    }
+}
+
+fn get_2d_plot_bounds<I>(
+    x_limits: Option<[f64; 2]>,
+    y_limits: Option<[f64; 2]>,
+    xy_iter: I,
+) -> PlotBounds
+where
+    I: Iterator<Item = [f64; 2]>,
+{
+    let [x_min_init, x_max_init] =
+        x_limits.unwrap_or([-f64::INFINITY, f64::INFINITY]);
+    let [y_min_init, y_max_init] =
+        y_limits.unwrap_or([-f64::INFINITY, f64::INFINITY]);
+    let filtered_data = xy_iter.filter(|c| {
+        c[0] >= x_min_init
+            && c[0] <= x_max_init
+            && c[1] >= y_min_init
+            && c[1] <= y_max_init
+    });
+
+    let [mut x_min, mut x_max] = [f64::INFINITY, -f64::INFINITY];
+    let [mut y_min, mut y_max] = [f64::INFINITY, -f64::INFINITY];
+
+    for c in filtered_data {
+        x_min = x_min.min(c[0]);
+        x_max = x_max.max(c[0]);
+        y_min = y_min.min(c[1]);
+        y_max = y_max.max(c[1]);
+    }
+
+    [x_min, x_max] = x_limits.unwrap_or([x_min, x_max]);
+    [y_min, y_max] = y_limits.unwrap_or([y_min, y_max]);
+
+    PlotBounds::from_min_max([x_min, y_min], [x_max, y_max])
+}
+
+fn set_name_and_color_line<'a>(
+    mut line: Line<'a>,
+    name: &str,
+    color: &Option<RGBAColor>,
+) -> Line<'a> {
+    if !name.is_empty() {
+        line = line.name(name);
+    }
+    if let Some(color) = color {
+        line = line.color(color.to_egui());
+    }
+    line
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -355,37 +513,48 @@ impl eframe::App for NyquistPlotEgui {
             let plot = Plot::new("Nyquist Plot").legend(Legend::default());
             plot.show(ui, |plot_ui| {
                 if !self.init {
-                    let mut bounds = plot_ui.plot_bounds();
-                    if let Some([x_min, x_max]) = self.nyq.options.x_limits {
-                        bounds.set_x(&PlotBounds::from_min_max(
-                            [x_min, x_min],
-                            [x_max, x_max],
-                        ));
-                    }
-                    if let Some([y_min, y_max]) = self.nyq.options.y_limits {
-                        bounds.set_y(&PlotBounds::from_min_max(
-                            [y_min, y_min],
-                            [y_max, y_max],
-                        ));
-                    }
-                    plot_ui.set_plot_bounds(bounds);
-                }
-                for data in &self.nyq.plot_data {
-                    let plot_points = PlotPoints::from_iter(
-                        data.data_points.iter().map(|c| [c.re, c.im]),
+                    let data_iter = self
+                        .nyq
+                        .plot_data
+                        .iter()
+                        .flat_map(|nyq_data| nyq_data.data_points.iter());
+
+                    let bounds_init = NyquistPlotEgui::get_plot_bounds(
+                        self.nyq.options.x_limits,
+                        self.nyq.options.y_limits,
+                        data_iter,
                     );
-                    let mut line = Line::new(plot_points);
-                    if !data.name.is_empty() {
-                        line = line.name(data.name.clone());
-                    }
-                    if let Some(color) = data.color {
-                        line = line.color(color.to_egui());
-                    }
-                    plot_ui.line(line);
+                    plot_ui.set_plot_bounds(bounds_init);
                 }
+                NyquistPlotEgui::plot_data(plot_ui, &self.nyq.plot_data);
             });
         });
         self.init = true;
+    }
+}
+
+impl NyquistPlotEgui {
+    fn get_plot_bounds<'a, I>(
+        x_limits: Option<[f64; 2]>,
+        y_limits: Option<[f64; 2]>,
+        data: I,
+    ) -> PlotBounds
+    where
+        I: Iterator<Item = &'a Complex64>,
+    {
+        let xy_iter = data.map(|c| [c.re, c.im]);
+        get_2d_plot_bounds(x_limits, y_limits, xy_iter)
+    }
+
+    fn plot_data(plot_ui: &mut PlotUi, data: &[NyquistPlotData]) {
+        for data_i in data {
+            let plot_points = PlotPoints::from_iter(
+                data_i.data_points.iter().map(|c| [c.re, c.im]),
+            );
+            let mut line = Line::new(plot_points);
+            line = set_name_and_color_line(line, &data_i.name, &data_i.color);
+            plot_ui.line(line);
+        }
     }
 }
 
