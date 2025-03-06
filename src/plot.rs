@@ -1,7 +1,7 @@
 use core::f64;
 
 use egui::Color32;
-use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints, PlotUi};
+use egui_plot::{Legend, Line, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
 
 #[derive(Clone, Copy, Debug)]
@@ -137,6 +137,36 @@ fn color_order(idx: usize) -> RGBAColor {
     RGBAColor::new((r * 255.) as u8, (g * 255.) as u8, (b * 255.) as u8, 255)
 }
 
+pub trait Plot {
+    fn show(
+        self,
+        width: usize,
+        height: usize,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + 'static>>;
+}
+
+impl<T: eframe::App> Plot for T {
+    fn show(
+        self,
+        width: usize,
+        height: usize,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        let opts = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([width as f32, height as f32]),
+            ..Default::default()
+        };
+        eframe::run_native(
+            name,
+            opts,
+            Box::new(move |_cc| Ok(Box::new(self))),
+        )?;
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 pub struct BodePlotData {
     mag_phase_freq_points: Vec<[f64; 3]>,
@@ -240,7 +270,7 @@ impl eframe::App for BodePlotEgui {
                 ui.add_sized(
                     [ui.available_width(), plot_height],
                     |ui: &mut egui::Ui| -> egui::Response {
-                        let mag_plot = Plot::new("Magnitude Plot")
+                        let mag_plot = egui_plot::Plot::new("Magnitude Plot")
                             .legend(Legend::default());
                         let resp = mag_plot.show(ui, |plot_ui| {
                             if !self.init {
@@ -268,8 +298,8 @@ impl eframe::App for BodePlotEgui {
                 ui.add_sized(
                     [ui.available_width(), plot_height],
                     |ui: &mut egui::Ui| -> egui::Response {
-                        let mag_plot =
-                            Plot::new("Phase Plot").legend(Legend::default());
+                        let mag_plot = egui_plot::Plot::new("Phase Plot")
+                            .legend(Legend::default());
                         mag_plot
                             .show(ui, |plot_ui| {
                                 if !self.init {
@@ -358,6 +388,17 @@ impl BodePlotEgui {
             line = set_name_and_color_line(line, &data_i.name, &data_i.color);
             plot_ui.line(line);
         }
+    }
+}
+
+impl Plot for BodePlot {
+    fn show(
+        self,
+        width: usize,
+        height: usize,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        BodePlotEgui::new(self).show(width, height, name)
     }
 }
 
@@ -510,7 +551,8 @@ impl From<NyquistPlot> for NyquistPlotEgui {
 impl eframe::App for NyquistPlotEgui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let plot = Plot::new("Nyquist Plot").legend(Legend::default());
+            let plot =
+                egui_plot::Plot::new("Nyquist Plot").legend(Legend::default());
             plot.show(ui, |plot_ui| {
                 if !self.init {
                     let data_iter = self
@@ -555,6 +597,17 @@ impl NyquistPlotEgui {
             line = set_name_and_color_line(line, &data_i.name, &data_i.color);
             plot_ui.line(line);
         }
+    }
+}
+
+impl Plot for NyquistPlot {
+    fn show(
+        self,
+        width: usize,
+        height: usize,
+        name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + 'static>> {
+        NyquistPlotEgui::new(self).show(width, height, name)
     }
 }
 

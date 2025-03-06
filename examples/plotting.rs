@@ -9,9 +9,7 @@ fn main() {
     let sys_p1 = sys.clone() * pade;
     let sys_p2 = sys.clone() * pade2;
 
-    let nyq_opts = NyquistPlotOptions::default()
-        .set_x_limits([-2., 1.])
-        .set_y_limits([-2., 2.]);
+    let nyq_opts = NyquistPlotOptions::default().set_y_limits([-2., 2.]);
     let mut nyq_plot = NyquistPlot::new(nyq_opts);
     let nyq_data = nyquist(sys, 0.01, 100.);
     nyq_plot.add_system(nyq_data.into());
@@ -25,20 +23,11 @@ fn main() {
         .set_color(RGBAColor::GREEN);
     nyq_plot.add_system(data);
 
-    let opts = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([800., 600.]),
-        ..Default::default()
-    };
-    let nyq_plot_egui = NyquistPlotEgui::new(nyq_plot);
-    eframe::run_native(
-        "Nyqust Plot",
-        opts.clone(),
-        Box::new(move |_cc| Ok(Box::new(nyq_plot_egui))),
-    )
-    .unwrap();
+    nyq_plot.show(800, 600, "Nyquist").unwrap();
 
+    /////////////// BODE
     let bodeopts = BodePlotOptions::default();
+    let bodeopts = bodeopts.set_x_limits([1., 100.]);
     let mut bodeplot = BodePlot::new(bodeopts);
 
     let sys: Tf<f64, Continuous> = Tf::new(&[0.0, 1.0], &[1.0, 1.0]);
@@ -50,22 +39,14 @@ fn main() {
         .collect();
 
     bodeplot.add_system(
-        BodePlotData::from(mag_phase_freq_vec.clone()).set_name("Test"),
+        BodePlotData::from(mag_phase_freq_vec.clone()).set_name("System 1"),
     );
 
-    bodeplot.add_system(
-        BodePlotData::new(mag_phase_freq_vec.clone()).set_name("INLINE"),
-    );
     let data = BodePlotData::new(mag_phase_freq_vec.clone())
-        .set_name("Test")
+        .set_name("System 1 Green")
         .set_color(RGBAColor::GREEN);
     bodeplot.add_system(data);
 
-    let mut data: BodePlotData = mag_phase_freq_vec.clone().into();
-    data = data.set_color(RGBAColor::RED).set_name("TEST");
-    bodeplot.add_system(data);
-
-    bodeplot.add_system(mag_phase_freq_vec.into());
     let sys2: Tf<f64, Continuous> = Tf::new(&[1.0], &[1.0, 1.0]);
     let (mag, phase, freq) = bode(sys2, 0.1, 100.);
     let mag_phase_freq_vec: Vec<[f64; 3]> = mag
@@ -76,11 +57,5 @@ fn main() {
 
     bodeplot.add_system(mag_phase_freq_vec.into());
 
-    let bodeegui = BodePlotEgui::new(bodeplot);
-    eframe::run_native(
-        "Bode Plot",
-        opts,
-        Box::new(move |_cc| Ok(Box::new(bodeegui))),
-    )
-    .unwrap();
+    bodeplot.show(800, 600, "Bodeplot 1").unwrap();
 }
