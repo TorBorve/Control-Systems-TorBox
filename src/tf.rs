@@ -37,6 +37,18 @@ where
     }
 }
 
+impl Tf<f64, Continuous> {
+    pub fn s() -> Self {
+        Tf::new(&[0., 1.], &[1.])
+    }
+}
+
+impl Tf<f64, Discrete> {
+    pub fn z() -> Self {
+        Tf::new(&[0., 1.], &[1.])
+    }
+}
+
 impl<T, U: Time + Any> fmt::Display for Tf<T, U>
 where
     T: Zero + fmt::Display,
@@ -99,16 +111,86 @@ macro_rules! impl_compound_assign {
     )*
     };
 }
-impl_compound_assign!(
-    Tf,
-    [
-        (Add, add, AddAssign, add_assign),
-        (Sub, sub, SubAssign, sub_assign),
-        (Mul, mul, MulAssign, mul_assign),
-        (Div, div, DivAssign, div_assign)
-    ]
-);
+impl_compound_assign!(Tf, [
+    (Add, add, AddAssign, add_assign),
+    (Sub, sub, SubAssign, sub_assign),
+    (Mul, mul, MulAssign, mul_assign),
+    (Div, div, DivAssign, div_assign)
+]);
 
+macro_rules! impl_scalar_math_operator {
+    ($struct_type:ident, $scalar_type:ty, [$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl<U: Time> $operator<$scalar_type> for $struct_type<$scalar_type, U> {
+                type Output = Self;
+                fn $operator_fn(self, rhs: $scalar_type) -> Self::Output {
+                    let new_rf = self.rf.$operator_fn(RationalFunction::new_from_scalar(rhs));
+                    Tf::new_from_rf(new_rf)
+                }
+            }
+
+            impl<U: Time> $operator<$struct_type<$scalar_type, U>> for $scalar_type {
+                type Output = $struct_type<$scalar_type, U>;
+                fn $operator_fn(self, rhs: $struct_type<$scalar_type, U>) -> Self::Output {
+                    let scalar_rf = RationalFunction::new_from_scalar(self);
+                    let new_rf = scalar_rf.$operator_fn(rhs.rf);
+                    Tf::new_from_rf(new_rf)
+                }
+            }
+        )*
+    };
+}
+
+impl_scalar_math_operator!(Tf, f32, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_scalar_math_operator!(Tf, f64, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+
+impl_scalar_math_operator!(Tf, i8, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_scalar_math_operator!(Tf, i16, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+
+impl_scalar_math_operator!(Tf, i32, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_scalar_math_operator!(Tf, i64, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_scalar_math_operator!(Tf, i128, [
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_scalar_math_operator!(Tf, u8, [(Add, add), (Mul, mul), (Div, div)]);
+impl_scalar_math_operator!(Tf, u16, [(Add, add), (Mul, mul), (Div, div)]);
+
+impl_scalar_math_operator!(Tf, u32, [(Add, add), (Mul, mul), (Div, div)]);
+impl_scalar_math_operator!(Tf, u64, [(Add, add), (Mul, mul), (Div, div)]);
+impl_scalar_math_operator!(Tf, u128, [(Add, add), (Mul, mul), (Div, div)]);
 impl<T, U: Time> Tf<T, U>
 where
     T: One + Zero + Mul<Output = T> + AddAssign + Clone,
@@ -149,5 +231,27 @@ mod tests {
             assert_abs_diff_eq!(y.im, y_expect.im);
         }
         println!("Tf cont: \n{}", tf);
+    }
+
+    #[test]
+    fn shortcut() {
+        let s = Tf::s();
+        assert_eq!(s.eval(&10.), 10.);
+
+        let z = Tf::z();
+        assert_eq!(z.eval(&101.), 101.);
+    }
+
+    #[test]
+    fn scalar_math() {
+        let s = Tf::s();
+        let sys = (2. * s + 1.) / (Tf::s() + 1.);
+
+        let mut rng = rand::rng();
+        for _ in 0..1000 {
+            let x = rng.random::<f64>();
+            assert_abs_diff_eq!(sys.eval(&x), (2.*x + 1.)/(x + 1.));
+        }
+
     }
 }
