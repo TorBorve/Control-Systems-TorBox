@@ -1,6 +1,6 @@
 use core::f64;
 
-use egui::{Color32, Ui};
+use egui::{Align, Color32, Layout, Ui};
 use egui_plot::{Legend, Line, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
 
@@ -281,6 +281,14 @@ impl From<BodePlot> for BodePlotEgui {
 
 impl eframe::App for BodePlotEgui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                if ui.button(egui::RichText::new("🏠").size(20.0)).clicked() {
+                    *self = self.bode.clone().into();
+                }
+            });
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             let plot_height = ui.available_height() / 2.0;
             ui.vertical(|ui| {
@@ -599,6 +607,13 @@ impl From<NyquistPlot> for NyquistPlotEgui {
 
 impl eframe::App for NyquistPlotEgui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
+                if ui.button(egui::RichText::new("🏠").size(20.0)).clicked() {
+                    *self = self.nyq.clone().into();
+                }
+            });
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             let plot =
                 egui_plot::Plot::new("Nyquist Plot").legend(Legend::default());
