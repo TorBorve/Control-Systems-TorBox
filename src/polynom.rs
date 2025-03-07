@@ -174,14 +174,11 @@ macro_rules! impl_compound_assign {
     };
 }
 
-impl_compound_assign!(
-    Polynomial,
-    [
-        (Add, add, AddAssign, add_assign),
-        (Sub, sub, SubAssign, sub_assign),
-        (Mul, mul, MulAssign, mul_assign)
-    ]
-);
+impl_compound_assign!(Polynomial, [
+    (Add, add, AddAssign, add_assign),
+    (Sub, sub, SubAssign, sub_assign),
+    (Mul, mul, MulAssign, mul_assign)
+]);
 
 // Did this because of orphanrule. However, could also just use .into()?
 macro_rules! impl_one_operator_scalar_trait {
@@ -207,48 +204,48 @@ macro_rules! impl_one_operator_scalar_trait {
     };
 }
 
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    f64,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
+impl_one_operator_scalar_trait!(Polynomial, f64, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
 
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    f32,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    i8,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    i16,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    i32,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    i64,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    i128,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
+impl_one_operator_scalar_trait!(Polynomial, f32, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
+impl_one_operator_scalar_trait!(Polynomial, i8, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
+impl_one_operator_scalar_trait!(Polynomial, i16, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
+impl_one_operator_scalar_trait!(Polynomial, i32, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
+impl_one_operator_scalar_trait!(Polynomial, i64, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
+impl_one_operator_scalar_trait!(Polynomial, i128, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
 
-impl_one_operator_scalar_trait!(
-    Polynomial,
-    isize,
-    [(Sub, sub), (Add, add), (Mul, mul)]
-);
+impl_one_operator_scalar_trait!(Polynomial, isize, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul)
+]);
 impl_one_operator_scalar_trait!(Polynomial, u8, [(Add, add), (Mul, mul)]);
 impl_one_operator_scalar_trait!(Polynomial, u16, [(Add, add), (Mul, mul)]);
 
@@ -360,6 +357,23 @@ where
     }
 }
 
+impl<T> RationalFunction<T>
+where
+    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default,
+{
+    pub fn powi(self, exp: i32) -> Self {
+        let base = self;
+        let mut result = RationalFunction::new_from_scalar(T::one());
+        for _ in 0..exp.abs() {
+            result = result * base.clone();
+        }
+        if exp < 0 {
+            result = RationalFunction::new_from_scalar(T::one()) / result
+        }
+        result
+    }
+}
+
 impl<T> PartialEq for RationalFunction<T>
 where
     T: One
@@ -451,89 +465,94 @@ where
     }
 }
 
-impl_compound_assign!(
-    RationalFunction,
-    [
-        (Add, add, AddAssign, add_assign),
-        (Sub, sub, SubAssign, sub_assign),
-        (Mul, mul, MulAssign, mul_assign),
-        (Div, div, DivAssign, div_assign)
-    ]
-);
+impl_compound_assign!(RationalFunction, [
+    (Add, add, AddAssign, add_assign),
+    (Sub, sub, SubAssign, sub_assign),
+    (Mul, mul, MulAssign, mul_assign),
+    (Div, div, DivAssign, div_assign)
+]);
 
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    f64,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
+impl_one_operator_scalar_trait!(RationalFunction, f64, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
 
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    f32,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    i8,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    i16,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    i32,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    i64,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    i128,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
+impl_one_operator_scalar_trait!(RationalFunction, f32, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, i8, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, i16, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, i32, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, i64, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, i128, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
 
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    isize,
-    [(Sub, sub), (Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    u8,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    u16,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
+impl_one_operator_scalar_trait!(RationalFunction, isize, [
+    (Sub, sub),
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, u8, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, u16, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
 
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    u32,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    u64,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    u128,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
-impl_one_operator_scalar_trait!(
-    RationalFunction,
-    usize,
-    [(Add, add), (Mul, mul), (Div, div)]
-);
+impl_one_operator_scalar_trait!(RationalFunction, u32, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, u64, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, u128, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
+impl_one_operator_scalar_trait!(RationalFunction, usize, [
+    (Add, add),
+    (Mul, mul),
+    (Div, div)
+]);
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /// Tests
@@ -704,5 +723,21 @@ mod tests {
         assert_eq!(rf.clone() + 1.0, 2.0.into());
         assert_eq!(rf.clone() * 2.0, 2.0.into());
         assert_eq!(rf.clone() / 2.0, 0.5.into());
+    }
+
+    #[test]
+    fn rational_functions_powi() {
+        let rf: RationalFunction<f64> = 1.0.into();
+        for i in 0..100 {
+            let new_rf = rf.clone().powi(i);
+            assert_eq!(new_rf, rf);
+        }
+
+        let rf =
+            RationalFunction::new_from_coeffs(&[1., 2., 4.], &[1., 4., 2., 8.]);
+        assert_eq!(rf.clone().powi(0), RationalFunction::new_from_scalar(1.));
+        assert_eq!(rf.clone().powi(1), rf.clone());
+        assert_eq!(rf.clone().powi(2), rf.clone() * rf.clone());
+        assert_eq!(rf.clone().powi(3), rf.clone() * rf.clone() * rf.clone());
     }
 }

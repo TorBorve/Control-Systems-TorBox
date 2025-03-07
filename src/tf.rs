@@ -208,6 +208,16 @@ where
     }
 }
 
+impl<T, U: Time> Tf<T, U>
+where
+    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default,
+{
+    pub fn powi(self, exp: i32) -> Self {
+        let new_rf = self.rf.powi(exp);
+        Tf::new_from_rf(new_rf)
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////
 /// TESTS
 ///////////////////////////////////////////////////////////////////////////////////
@@ -250,8 +260,17 @@ mod tests {
         let mut rng = rand::rng();
         for _ in 0..1000 {
             let x = rng.random::<f64>();
-            assert_abs_diff_eq!(sys.eval(&x), (2.*x + 1.)/(x + 1.));
+            assert_abs_diff_eq!(sys.eval(&x), (2. * x + 1.) / (x + 1.));
         }
+    }
 
+    #[test]
+    fn powi_tf() {
+        let sys =
+            (2. * Tf::s().powi(0) + 1. * Tf::s().powi(1) + Tf::s().powi(2))
+                / (1. * Tf::s().powi(1) + 2. * Tf::s().powi(2));
+        let sys_new: Tf<f64, Continuous> =
+            Tf::new(&[2., 1., 1.], &[0., 1., 2.]);
+        assert_eq!(sys.rf, sys_new.rf);
     }
 }
