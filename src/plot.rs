@@ -1,6 +1,6 @@
 use core::f64;
 
-use egui::Color32;
+use egui::{Color32, Ui};
 use egui_plot::{Legend, Line, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
 
@@ -248,11 +248,28 @@ impl BodePlot {
 pub struct BodePlotEgui {
     bode: BodePlot,
     init: bool,
+    shared_x_limits: [f64; 2],
+    last_mag_x_limits: [f64; 2],
+    last_phase_x_limits: [f64; 2],
 }
 
 impl BodePlotEgui {
     pub fn new(bode: BodePlot) -> Self {
-        Self { bode, init: false }
+        let bounds = BodePlotEgui::get_mag_bounds(
+            bode.options.x_limits,
+            None,
+            bode.plot_data
+                .iter()
+                .flat_map(|d| d.mag_phase_freq_points.iter()),
+        );
+        let x_limits = bounds_to_x_limits(&bounds);
+        Self {
+            bode,
+            init: false,
+            shared_x_limits: x_limits,
+            last_mag_x_limits: x_limits,
+            last_phase_x_limits: x_limits,
+        }
     }
 }
 
@@ -269,59 +286,12 @@ impl eframe::App for BodePlotEgui {
             ui.vertical(|ui| {
                 ui.add_sized(
                     [ui.available_width(), plot_height],
-                    |ui: &mut egui::Ui| -> egui::Response {
-                        let mag_plot = egui_plot::Plot::new("Magnitude Plot")
-                            .legend(Legend::default());
-                        let resp = mag_plot.show(ui, |plot_ui| {
-                            if !self.init {
-                                let bounds = BodePlotEgui::get_mag_bounds(
-                                    self.bode.options.x_limits,
-                                    None,
-                                    self.bode.plot_data.iter().flat_map(
-                                        |data| {
-                                            data.mag_phase_freq_points.iter()
-                                        },
-                                    ),
-                                );
-                                plot_ui.set_plot_bounds(bounds);
-                            }
-
-                            BodePlotEgui::plot_mag_data(
-                                plot_ui,
-                                &self.bode.plot_data,
-                            );
-                        });
-                        resp.response
-                    },
+                    |ui: &mut egui::Ui| self.add_mag_plot(ui),
                 );
 
                 ui.add_sized(
                     [ui.available_width(), plot_height],
-                    |ui: &mut egui::Ui| -> egui::Response {
-                        let mag_plot = egui_plot::Plot::new("Phase Plot")
-                            .legend(Legend::default());
-                        mag_plot
-                            .show(ui, |plot_ui| {
-                                if !self.init {
-                                    let bounds = BodePlotEgui::get_phase_bounds(
-                                        self.bode.options.x_limits,
-                                        None,
-                                        self.bode.plot_data.iter().flat_map(
-                                            |data| {
-                                                data.mag_phase_freq_points
-                                                    .iter()
-                                            },
-                                        ),
-                                    );
-                                    plot_ui.set_plot_bounds(bounds);
-                                }
-                                BodePlotEgui::plot_phase_data(
-                                    plot_ui,
-                                    &self.bode.plot_data,
-                                );
-                            })
-                            .response
-                    },
+                    |ui: &mut Ui| self.add_phase_plot(ui),
                 );
             });
         });
@@ -330,6 +300,32 @@ impl eframe::App for BodePlotEgui {
 }
 
 impl BodePlotEgui {
+    fn add_mag_plot(&mut self, ui: &mut Ui) -> egui::Response {
+        egui_plot::Plot::new("Magnitude Plot")
+            .legend(Legend::default())
+            .show(ui, |plot_ui| {
+                if !self.init {
+                    let bounds = BodePlotEgui::get_mag_bounds(
+                        self.bode.options.x_limits,
+                        None,
+                        self.bode
+                            .plot_data
+                            .iter()
+                            .flat_map(|data| data.mag_phase_freq_points.iter()),
+                    );
+                    plot_ui.set_plot_bounds(bounds);
+                }
+
+                BodePlotEgui::plot_mag_data(plot_ui, &self.bode.plot_data);
+                [self.shared_x_limits, self.last_mag_x_limits] =
+                    BodePlotEgui::synchronize_x_axes(
+                        plot_ui,
+                        self.last_mag_x_limits,
+                        self.shared_x_limits,
+                    );
+            })
+            .response
+    }
     fn plot_mag_data(plot_ui: &mut PlotUi, data: &[BodePlotData]) {
         for data_i in data {
             let plot_points = PlotPoints::from_iter(
@@ -360,6 +356,32 @@ impl BodePlotEgui {
         PlotBounds::from_min_max([x_min.log10(), y_min], [x_max.log10(), y_max])
     }
 
+    fn add_phase_plot(&mut self, ui: &mut Ui) -> egui::Response {
+        egui_plot::Plot::new("Phase Plot")
+            .legend(Legend::default())
+            .show(ui, |plot_ui| {
+                if !self.init {
+                    let bounds = BodePlotEgui::get_phase_bounds(
+                        self.bode.options.x_limits,
+                        None,
+                        self.bode
+                            .plot_data
+                            .iter()
+                            .flat_map(|data| data.mag_phase_freq_points.iter()),
+                    );
+                    plot_ui.set_plot_bounds(bounds);
+                }
+                BodePlotEgui::plot_phase_data(plot_ui, &self.bode.plot_data);
+                [self.shared_x_limits, self.last_phase_x_limits] =
+                    BodePlotEgui::synchronize_x_axes(
+                        plot_ui,
+                        self.last_phase_x_limits,
+                        self.shared_x_limits,
+                    );
+            })
+            .response
+    }
+
     fn get_phase_bounds<'a, I>(
         x_limits: Option<[f64; 2]>,
         y_limits: Option<[f64; 2]>,
@@ -388,6 +410,22 @@ impl BodePlotEgui {
             line = set_name_and_color_line(line, &data_i.name, &data_i.color);
             plot_ui.line(line);
         }
+    }
+    fn synchronize_x_axes(
+        plot_ui: &mut PlotUi,
+        last_x_limits: [f64; 2],
+        shared_x_limits: [f64; 2],
+    ) -> [[f64; 2]; 2] {
+        let current_x_limits = bounds_to_x_limits(&plot_ui.plot_bounds());
+        let mut new_shared_x_limits = shared_x_limits;
+        if last_x_limits != current_x_limits {
+            new_shared_x_limits = current_x_limits;
+        } else if current_x_limits != shared_x_limits {
+            let mut bounds = plot_ui.plot_bounds();
+            bounds = bounds_set_x_limits(&bounds, shared_x_limits);
+            plot_ui.set_plot_bounds(bounds);
+        }
+        [new_shared_x_limits, current_x_limits]
     }
 }
 
@@ -449,6 +487,17 @@ fn set_name_and_color_line<'a>(
         line = line.color(color.to_egui());
     }
     line
+}
+
+fn bounds_to_x_limits(bounds: &PlotBounds) -> [f64; 2] {
+    [bounds.min()[0], bounds.max()[0]]
+}
+
+fn bounds_set_x_limits(bounds: &PlotBounds, x_limits: [f64; 2]) -> PlotBounds {
+    PlotBounds::from_min_max([x_limits[0], bounds.min()[1]], [
+        x_limits[1],
+        bounds.max()[1],
+    ])
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
