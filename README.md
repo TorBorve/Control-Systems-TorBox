@@ -24,9 +24,10 @@ Control Systems Torbox is a rust library for performing analysis, simulation and
 - [x] Improve plotting structure. Make plotting trait which nyquistplot and bodeplot implements?
 - [X] Impl egui for bode- and nyquist-plot.
 - [x] Fix x_limits and y_limits egui use auto scale if not set.
-- [ ] Sych x-limits in Bodeplot
-- [ ] Home button in nyquist and bodeplot
+- [x] Sych x-limits in Bodeplot
+- [x] Home button in nyquist and bodeplot
 - [x] Tf^(i) implement
+- [ ] Can SLICOT be used to implement some routines and transforms?
 
 
 ## Resources
