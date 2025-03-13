@@ -1,6 +1,10 @@
 use std::{error::Error, marker::PhantomData};
 
-use crate::{slicotrs::ss2tf_tb04ad, tf::Tf, traits::Time};
+use crate::{
+    slicotrs::ss2tf_tb04ad,
+    tf::Tf,
+    traits::{Time, Zero},
+};
 extern crate nalgebra as na;
 use na::DMatrix;
 
@@ -28,6 +32,22 @@ impl<U: Time + 'static> Ss<U> {
             d,
             time: PhantomData::<U>,
         })
+    }
+
+    pub fn a(&self) -> &DMatrix<f64> {
+        &self.a
+    }
+
+    pub fn b(&self) -> &DMatrix<f64> {
+        &self.b
+    }
+
+    pub fn c(&self) -> &DMatrix<f64> {
+        &self.c
+    }
+
+    pub fn d(&self) -> &DMatrix<f64> {
+        &self.d
     }
 
     pub fn verify_dimensions(
@@ -66,26 +86,8 @@ impl<U: Time + 'static> Ss<U> {
         }
         Ok(())
     }
-
-    pub fn ss2tf(ss: &Ss<U>) -> Result<Tf<f64, U>, Box<dyn Error + 'static>> {
-        Ss::ss2tf_mat(&ss.a, &ss.b, &ss.c, &ss.d)
-    }
-
-    fn ss2tf_mat(
-        a: &DMatrix<f64>,
-        b: &DMatrix<f64>,
-        c: &DMatrix<f64>,
-        d: &DMatrix<f64>,
-    ) -> Result<Tf<f64, U>, Box<dyn Error + 'static>> {
-        ss2tf_tb04ad(a, b, c, d)
-    }
 }
 
-impl<U: Time> From<Ss<U>> for Tf<f64, U> {
-    fn from(value: Ss<U>) -> Self {
-        todo!()
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -146,15 +148,5 @@ mod tests {
         );
     }
 
-    #[test]
-    fn ss2tf_test() {
-        let a = DMatrix::from_row_slice(2, 2, &[0., 1., 1., 2.]);
-        let b = DMatrix::from_row_slice(2, 1, &[5., 1.]);
-        let c = DMatrix::from_row_slice(1, 2, &[1., 2.]);
-        let d = DMatrix::zeros(1, 1);
 
-        let ss = Ss::<Continuous>::new(a, b, c, d).unwrap();
-
-        Ss::ss2tf(&ss).unwrap();
-    }
 }

@@ -140,10 +140,18 @@ pub fn ss2tf_tb04ad<U: Time + 'static>(
     }
 
     let den_degree = index[0] as usize;
-    let den: Vec<f64> = dcoeff.view((0, 0), (1, den_degree + 1)).iter().rev().map(|&x| x).collect();
-    let num: Vec<f64> = ucoeff.view((0, 0), (1, den_degree + 1)).iter().rev().map(|&x| x).collect();
+    let den: Vec<f64> = dcoeff
+        .view((0, 0), (1, den_degree + 1))
+        .iter()
+        .rev()
+        .map(|&x| x)
+        .collect();
+    let num: Vec<f64> = ucoeff
+        .view((0, 0), (1, den_degree + 1))
+        .iter()
+        .rev()
+        .map(|&x| x)
+        .collect();
     let tf = Tf::<f64, U>::new(num.as_slice(), den.as_slice());
-    println!("tf:\n{}", tf);
-
     Ok(tf)
 }
