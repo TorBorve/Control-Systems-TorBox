@@ -1,4 +1,4 @@
-use num_complex::{c64, Complex64};
+use num_complex::{Complex64, c64};
 
 use crate::{
     tf::Tf,
@@ -33,7 +33,7 @@ pub fn bode<U: Time>(
     min_freq: f64,
     max_freq: f64,
 ) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
-    let freqs = log_space(min_freq, max_freq, 10000, 10);
+    let freqs = log_space(min_freq, max_freq, 1000, 10);
     let (mag_vec, phase_vec) = bode_freqs(sys, freqs.as_slice());
     (mag_vec, phase_vec, freqs)
 }
@@ -59,7 +59,7 @@ pub fn nyquist<U: Time>(
     min_freq: f64,
     max_freq: f64,
 ) -> Vec<Complex64> {
-    let freqs = log_space(min_freq, max_freq, 10000, 10);
+    let freqs = log_space(min_freq, max_freq, 1000, 10);
     nyquist_freqs(sys, freqs.as_slice())
 }
 

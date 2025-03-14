@@ -1,9 +1,4 @@
-use crate::{
-    slicotrs::ss2tf_tb04ad,
-    ss::Ss,
-    tf::Tf,
-    traits::{Time, Zero},
-};
+use crate::{slicotrs::ss2tf_tb04ad, ss::Ss, tf::Tf, traits::Time};
 use nalgebra::DMatrix;
 use std::error::Error;
 
@@ -65,8 +60,8 @@ fn tf2ss_observable<U: Time + 'static>(
 
     let mut b_values = num_extended;
     assert!(tf.denominator().len() - 1 <= b_values.len());
-    for i in 0..nx {
-        b_values[i] += -d[(0, 0)] * tf.denominator()[i];
+    for (i, den_i) in tf.denominator().iter().enumerate().take(nx) {
+        b_values[i] += -d[(0, 0)] * den_i;
     }
 
     let b = DMatrix::from_column_slice(nx, 1, &b_values);
@@ -74,7 +69,7 @@ fn tf2ss_observable<U: Time + 'static>(
     let mut c = DMatrix::zeros(1, nx);
     c[(0, nx - 1)] = 1.;
 
-    Ok(Ss::<U>::new(a, b, c, d)?)
+    Ss::<U>::new(a, b, c, d)
 }
 
 fn tf2ss_controllable<U: Time + 'static>(
@@ -87,27 +82,22 @@ fn tf2ss_controllable<U: Time + 'static>(
     let c = ss.b().transpose();
     let d = ss.d().transpose();
 
-    Ok(Ss::<U>::new(a, b, c, d)?)
+    Ss::<U>::new(a, b, c, d)
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum SsRealization {
+    #[default]
     ObservableCF,
     ControllableCF,
-}
-
-impl Default for SsRealization {
-    fn default() -> Self {
-        SsRealization::ObservableCF
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
 
-    use rayon::prelude::*;
     use super::*;
+    use rayon::prelude::*;
 
     use crate::traits::Continuous;
     use approx::assert_abs_diff_eq;
@@ -148,7 +138,7 @@ mod tests {
 
     #[test]
     fn convert_between_tf_and_ss() {
-        let start = Instant::now(); 
+        let start = Instant::now();
         (0..1000).into_par_iter().for_each(|_| {
             let mut rng = rand::rng();
             let den_order = rng.random_range(1..=100) as usize;

@@ -1,10 +1,6 @@
 use std::{error::Error, marker::PhantomData};
 
-use crate::{
-    slicotrs::ss2tf_tb04ad,
-    tf::Tf,
-    traits::{Time, Zero},
-};
+use crate::traits::Time;
 extern crate nalgebra as na;
 use na::DMatrix;
 
@@ -88,7 +84,6 @@ impl<U: Time + 'static> Ss<U> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use crate::traits::Continuous;
@@ -147,6 +142,4 @@ mod tests {
             .is_err()
         );
     }
-
-
 }

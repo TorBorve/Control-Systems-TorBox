@@ -144,13 +144,13 @@ pub fn ss2tf_tb04ad<U: Time + 'static>(
         .view((0, 0), (1, den_degree + 1))
         .iter()
         .rev()
-        .map(|&x| x)
+        .copied()
         .collect();
     let num: Vec<f64> = ucoeff
         .view((0, 0), (1, den_degree + 1))
         .iter()
         .rev()
-        .map(|&x| x)
+        .copied()
         .collect();
     let tf = Tf::<f64, U>::new(num.as_slice(), den.as_slice());
     Ok(tf)

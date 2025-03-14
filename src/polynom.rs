@@ -96,14 +96,17 @@ where
     }
 }
 
-impl<T> Polynomial<T> where T: Zero {
+impl<T> Polynomial<T>
+where
+    T: Zero,
+{
     pub fn degree(&self) -> usize {
         let last_non_zero = self.coeffs.iter().rposition(|x| !x.is_zero());
         last_non_zero.unwrap_or(0)
     }
 }
 
-impl <T> Polynomial<T> {
+impl<T> Polynomial<T> {
     pub fn coeffs(&self) -> &[T] {
         &self.coeffs
     }
@@ -283,7 +286,10 @@ impl<T: Zero + Clone> RationalFunction<T> {
         Self { num, den }
     }
 
-    pub fn new_from_poly(num_poly: Polynomial<T>, den_poly: Polynomial<T>) -> Self {
+    pub fn new_from_poly(
+        num_poly: Polynomial<T>,
+        den_poly: Polynomial<T>,
+    ) -> Self {
         Self {
             num: num_poly,
             den: den_poly,
@@ -291,7 +297,7 @@ impl<T: Zero + Clone> RationalFunction<T> {
     }
 }
 
-impl <T> RationalFunction<T> {
+impl<T> RationalFunction<T> {
     pub fn numerator(&self) -> &[T] {
         self.num.coeffs()
     }
@@ -362,7 +368,8 @@ where
 }
 
 impl<T> RationalFunction<T>
-where T: Zero
+where
+    T: Zero,
 {
     pub fn degree_num_den(&self) -> (usize, usize) {
         (self.num.degree(), self.den.degree())
@@ -606,10 +613,8 @@ mod tests {
     use rand::Rng;
     use std::f64;
 
-
     use approx::AbsDiffEq;
 
-    
     impl AbsDiffEq for Polynomial<f64> {
         type Epsilon = f64;
 
@@ -619,13 +624,15 @@ mod tests {
         fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
             let max_len = self.coeffs.len().max(other.coeffs.len());
 
-
             let mut lhs_vals = self.coeffs.to_vec();
             lhs_vals.resize(max_len, 0.);
             let mut rhs_vals = other.coeffs.to_vec();
             rhs_vals.resize(max_len, 0.);
 
-            lhs_vals.iter().zip(rhs_vals.iter()).all(|(x, y)| f64::abs_diff_eq(&x, &y, epsilon))
+            lhs_vals
+                .iter()
+                .zip(rhs_vals.iter())
+                .all(|(x, y)| f64::abs_diff_eq(&x, &y, epsilon))
         }
     }
 
@@ -640,7 +647,8 @@ mod tests {
             let lhs = self.normalize();
             let rhs = other.normalize();
 
-            lhs.num.abs_diff_eq(&rhs.num, epsilon) && lhs.den.abs_diff_eq(&rhs.den, epsilon)
+            lhs.num.abs_diff_eq(&rhs.num, epsilon)
+                && lhs.den.abs_diff_eq(&rhs.den, epsilon)
         }
     }
 
