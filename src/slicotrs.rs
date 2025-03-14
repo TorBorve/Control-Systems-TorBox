@@ -133,10 +133,10 @@ pub fn ss2tf_tb04ad<U: Time + 'static>(
     }
 
     if info != 0 {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("SLICOT tb04ad_ failed with info code {}", info),
-        )));
+        return Err(Box::new(std::io::Error::other(format!(
+            "SLICOT tb04ad_ failed with info code {}",
+            info
+        ))));
     }
 
     let den_degree = index[0] as usize;
