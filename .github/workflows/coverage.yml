@@ -17,6 +17,8 @@ jobs:
         run: rustup override set nightly
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
       - name: Generate code coverage
         run: cargo llvm-cov --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
