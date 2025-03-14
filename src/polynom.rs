@@ -96,6 +96,22 @@ where
     }
 }
 
+impl<T> Polynomial<T>
+where
+    T: Zero,
+{
+    pub fn degree(&self) -> usize {
+        let last_non_zero = self.coeffs.iter().rposition(|x| !x.is_zero());
+        last_non_zero.unwrap_or(0)
+    }
+}
+
+impl<T> Polynomial<T> {
+    pub fn coeffs(&self) -> &[T] {
+        &self.coeffs
+    }
+}
+
 impl<T> Mul for Polynomial<T>
 where
     T: Default + Mul<Output = T> + AddAssign + Clone,
@@ -269,6 +285,26 @@ impl<T: Zero + Clone> RationalFunction<T> {
         let den = Polynomial::new(den);
         Self { num, den }
     }
+
+    pub fn new_from_poly(
+        num_poly: Polynomial<T>,
+        den_poly: Polynomial<T>,
+    ) -> Self {
+        Self {
+            num: num_poly,
+            den: den_poly,
+        }
+    }
+}
+
+impl<T> RationalFunction<T> {
+    pub fn numerator(&self) -> &[T] {
+        self.num.coeffs()
+    }
+
+    pub fn denominator(&self) -> &[T] {
+        self.den.coeffs()
+    }
 }
 
 impl<T> RationalFunction<T>
@@ -328,6 +364,19 @@ where
         let num_val = self.num.eval(x);
         let den_val = self.den.eval(x);
         num_val / den_val
+    }
+}
+
+impl<T> RationalFunction<T>
+where
+    T: Zero,
+{
+    pub fn degree_num_den(&self) -> (usize, usize) {
+        (self.num.degree(), self.den.degree())
+    }
+
+    pub fn relative_degree(&self) -> i32 {
+        self.num.degree() as i32 - self.den.degree() as i32
     }
 }
 
@@ -564,6 +613,45 @@ mod tests {
     use rand::Rng;
     use std::f64;
 
+    use approx::AbsDiffEq;
+
+    impl AbsDiffEq for Polynomial<f64> {
+        type Epsilon = f64;
+
+        fn default_epsilon() -> Self::Epsilon {
+            1e-6
+        }
+        fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+            let max_len = self.coeffs.len().max(other.coeffs.len());
+
+            let mut lhs_vals = self.coeffs.to_vec();
+            lhs_vals.resize(max_len, 0.);
+            let mut rhs_vals = other.coeffs.to_vec();
+            rhs_vals.resize(max_len, 0.);
+
+            lhs_vals
+                .iter()
+                .zip(rhs_vals.iter())
+                .all(|(x, y)| f64::abs_diff_eq(&x, &y, epsilon))
+        }
+    }
+
+    impl AbsDiffEq for RationalFunction<f64> {
+        type Epsilon = f64;
+
+        fn default_epsilon() -> Self::Epsilon {
+            1e-6
+        }
+
+        fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+            let lhs = self.normalize();
+            let rhs = other.normalize();
+
+            lhs.num.abs_diff_eq(&rhs.num, epsilon)
+                && lhs.den.abs_diff_eq(&rhs.den, epsilon)
+        }
+    }
+
     #[test]
     fn polynomial() {
         let mut rng = rand::rng();
@@ -739,5 +827,17 @@ mod tests {
         assert_eq!(rf.clone().powi(1), rf.clone());
         assert_eq!(rf.clone().powi(2), rf.clone() * rf.clone());
         assert_eq!(rf.clone().powi(3), rf.clone() * rf.clone() * rf.clone());
+    }
+
+    #[test]
+    fn degree() {
+        let pol = Polynomial::new(&[0.0, 1.0, 2.0, 0.0, 0.0]);
+        assert_eq!(pol.degree(), 2);
+
+        let pol2 = pol.clone();
+        let rf = RationalFunction::new_from_poly(pol, pol2);
+
+        assert_eq!(rf.relative_degree(), 0);
+        assert_eq!(rf.degree_num_den(), (2, 2));
     }
 }

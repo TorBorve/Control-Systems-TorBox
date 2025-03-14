@@ -18,6 +18,22 @@ pub struct Tf<T, U: Time> {
     time: PhantomData<U>,
 }
 
+impl<T, U: Time> PartialEq for Tf<T, U>
+where
+    T: One
+        + Div<Output = T>
+        + Zero
+        + Clone
+        + Mul<Output = T>
+        + Default
+        + AddAssign
+        + PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.rf.eq(&other.rf)
+    }
+}
+
 impl<T, U: Time> Tf<T, U>
 where
     T: Zero + Clone,
@@ -34,6 +50,29 @@ where
             rf,
             time: PhantomData::<U>,
         }
+    }
+
+    pub fn numerator(&self) -> &[T] {
+        self.rf.numerator()
+    }
+
+    pub fn denominator(&self) -> &[T] {
+        self.rf.denominator()
+    }
+}
+
+impl<T, U: Time> Tf<T, U>
+where
+    T: One
+        + Div<Output = T>
+        + Zero
+        + Clone
+        + Mul<Output = T>
+        + Default
+        + AddAssign,
+{
+    pub fn normalize(self) -> Self {
+        Tf::new_from_rf(self.rf.normalize())
     }
 }
 
@@ -63,6 +102,27 @@ where
         };
         let rf_str = self.rf.to_string_variable(var_name);
         write!(f, "{}", rf_str)
+    }
+}
+
+impl<T, U: Time> Tf<T, U>
+where
+    T: Zero,
+{
+    pub fn degree_num_den(&self) -> (usize, usize) {
+        self.rf.degree_num_den()
+    }
+
+    pub fn relative_degree(&self) -> i32 {
+        self.rf.relative_degree()
+    }
+
+    pub fn is_proper(&self) -> bool {
+        self.relative_degree() <= 0
+    }
+
+    pub fn is_strictly_proper(&self) -> bool {
+        self.relative_degree() < 0
     }
 }
 
@@ -229,6 +289,20 @@ mod tests {
     use approx::assert_abs_diff_eq;
     use rand::Rng;
 
+    use approx::AbsDiffEq;
+
+    impl<U: Time> AbsDiffEq for Tf<f64, U> {
+        type Epsilon = f64;
+
+        fn default_epsilon() -> Self::Epsilon {
+            1e-6
+        }
+
+        fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+            self.rf.abs_diff_eq(&other.rf, epsilon)
+        }
+    }
+
     #[test]
     fn eval_tf() {
         let mut rng = rand::rng();
@@ -272,5 +346,23 @@ mod tests {
         let sys_new: Tf<f64, Continuous> =
             Tf::new(&[2., 1., 1.], &[0., 1., 2.]);
         assert_eq!(sys.rf, sys_new.rf);
+    }
+
+    #[test]
+    fn degree() {
+        let sys =
+            Tf::<f64, Discrete>::new(&[0.0, 0., 0., 1., 2., 0.0], &[0.0, 1.]);
+        assert_eq!(sys.degree_num_den(), (4, 1));
+        assert_eq!(sys.relative_degree(), 4 - 1);
+        assert_eq!(sys.is_proper(), false);
+        assert_eq!(sys.is_strictly_proper(), false);
+
+        let sys = Tf::s() / Tf::s();
+        assert_eq!(sys.is_proper(), true);
+        assert_eq!(sys.is_strictly_proper(), false);
+
+        let sys = 1. / Tf::s();
+        assert_eq!(sys.is_proper(), true);
+        assert_eq!(sys.is_strictly_proper(), true);
     }
 }
