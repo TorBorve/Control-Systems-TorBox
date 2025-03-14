@@ -63,23 +63,16 @@ fn tf2ss_observable<U: Time + 'static>(
     let mut num_extended = tf.numerator().to_vec();
     num_extended.resize(nx, 0.);
 
-    let b_values: Vec<f64> = if d[(0, 0)].is_zero() {
-        num_extended
-    } else {
-        let d_const = d[(0, 0)];
-        let num_vals = &num_extended;
-        let den_vals = &tf.numerator()[..nx];
-        num_vals
-            .iter()
-            .zip(den_vals.iter())
-            .map(|(num_i, den_i)| num_i - d_const * den_i)
-            .collect()
-    };
+    let mut b_values = num_extended;
+    assert!(tf.denominator().len() - 1 <= b_values.len());
+    for i in 0..nx {
+        b_values[i] += -d[(0, 0)] * tf.denominator()[i];
+    }
 
     let b = DMatrix::from_column_slice(nx, 1, &b_values);
 
     let mut c = DMatrix::zeros(1, nx);
-    c[(0, 0)] = 1.;
+    c[(0, nx - 1)] = 1.;
 
     Ok(Ss::<U>::new(a, b, c, d)?)
 }
@@ -97,7 +90,7 @@ fn tf2ss_controllable<U: Time + 'static>(
     Ok(Ss::<U>::new(a, b, c, d)?)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum SsRealization {
     ObservableCF,
     ControllableCF,
@@ -111,10 +104,14 @@ impl Default for SsRealization {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Instant;
+
+    use rayon::prelude::*;
     use super::*;
 
     use crate::traits::Continuous;
     use approx::assert_abs_diff_eq;
+    use rand::{Rng, seq::IteratorRandom};
     #[test]
     fn ss2tf_test() {
         let a = DMatrix::from_row_slice(2, 2, &[0., 1., 0., 0.]);
@@ -125,7 +122,7 @@ mod tests {
         let ss = Ss::<Continuous>::new(a, b, c, d).unwrap();
         let tf = ss2tf(&ss).unwrap();
 
-        let tf_ans = 1./Tf::s().powi(2);
+        let tf_ans = 1. / Tf::s().powi(2);
         println!("ss2Tf: \n{}", tf);
         assert_abs_diff_eq!(tf, tf_ans);
     }
@@ -133,20 +130,46 @@ mod tests {
     #[test]
 
     fn tf2ss_test() {
-        let tf = 1./Tf::s().powi(2);
+        let tf = 1. / Tf::s().powi(2);
 
-        let ss = tf2ss(tf, SsRealization::ObservableCF).unwrap();
-        println!("{:?}", ss);
+        let ss = tf2ss(tf.clone(), SsRealization::ObservableCF).unwrap();
         let tf_ret = ss2tf(&ss).unwrap();
-        println!("tf ret: {}\n", tf_ret);
-        let a_ans = DMatrix::from_row_slice(2, 2, &[0., 1., 0., 0.]);
-        let b_ans = DMatrix::from_row_slice(2, 1, &[0., 1.]);
-        let c_ans = DMatrix::from_row_slice(1, 2, &[1., 0.]);
+        let a_ans = DMatrix::from_row_slice(2, 2, &[0., 0., 1., 0.]);
+        let b_ans = DMatrix::from_row_slice(2, 1, &[1., 0.]);
+        let c_ans = DMatrix::from_row_slice(1, 2, &[0., 1.]);
         let d_ans = DMatrix::from_row_slice(1, 1, &[0.]);
         assert_abs_diff_eq!(ss.a(), &a_ans);
         assert_abs_diff_eq!(ss.b(), &b_ans);
         assert_abs_diff_eq!(ss.c(), &c_ans);
         assert_abs_diff_eq!(ss.d(), &d_ans);
 
+        assert_abs_diff_eq!(tf_ret.normalize(), tf.normalize());
+    }
+
+    #[test]
+    fn convert_between_tf_and_ss() {
+        let start = Instant::now(); 
+        (0..1000).into_par_iter().for_each(|_| {
+            let mut rng = rand::rng();
+            let den_order = rng.random_range(1..=100) as usize;
+            let num_order = rng.random_range(0..=den_order);
+
+            let num: Vec<f64> =
+                (0..=num_order).map(|_| 10. * rng.random::<f64>()).collect();
+            let den: Vec<f64> =
+                (0..=den_order).map(|_| 10. * rng.random::<f64>()).collect();
+
+            let tf = Tf::<f64, Continuous>::new(&num, &den);
+            let methods =
+                [SsRealization::ControllableCF, SsRealization::ObservableCF];
+            let ss =
+                tf2ss(tf.clone(), *methods.iter().choose(&mut rng).unwrap())
+                    .unwrap();
+            let tf_ret = ss2tf(&ss).unwrap();
+
+            let tf = tf.normalize();
+            assert_abs_diff_eq!(tf, tf_ret);
+        });
+        println!("Time transfomrs: {:?}", start.elapsed());
     }
 }
