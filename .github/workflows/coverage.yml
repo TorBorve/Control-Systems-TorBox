@@ -9,7 +9,7 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
-      - name: Install Dependencies *BLAS, LAPACK)
+      - name: Install Dependencies (BLAS, LAPACK)
         run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
       - name: Install Rust
         run: rustup update stable
@@ -25,3 +25,4 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
           files: lcov.info
           fail_ci_if_error: true
+          slug: TorBorve/Control-Systems-TorBox
