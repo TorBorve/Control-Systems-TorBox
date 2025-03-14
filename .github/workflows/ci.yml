@@ -9,6 +9,9 @@ jobs:
       - name: Setup | Checkout
         uses: actions/checkout@v4
 
+      - name: Install Dependencies (BLAS, LAPACK)
+        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
+
       - name: Setup | Dependencies
         run: sudo apt update && sudo apt-get install -y libfontconfig1-dev libfontconfig1
 
@@ -31,7 +34,10 @@ jobs:
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v4
-      
+        
+      - name: Install Dependencies (BLAS, LAPACK)
+        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
+
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -45,7 +51,9 @@ jobs:
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v4
-
+      
+      - name: Install Dependencies (BLAS, LAPACK)
+        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
