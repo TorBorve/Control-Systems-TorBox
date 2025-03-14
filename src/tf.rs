@@ -171,12 +171,15 @@ macro_rules! impl_compound_assign {
     )*
     };
 }
-impl_compound_assign!(Tf, [
-    (Add, add, AddAssign, add_assign),
-    (Sub, sub, SubAssign, sub_assign),
-    (Mul, mul, MulAssign, mul_assign),
-    (Div, div, DivAssign, div_assign)
-]);
+impl_compound_assign!(
+    Tf,
+    [
+        (Add, add, AddAssign, add_assign),
+        (Sub, sub, SubAssign, sub_assign),
+        (Mul, mul, MulAssign, mul_assign),
+        (Div, div, DivAssign, div_assign)
+    ]
+);
 
 macro_rules! impl_scalar_math_operator {
     ($struct_type:ident, $scalar_type:ty, [$(($operator:ident, $operator_fn:ident)), *]) => {
@@ -201,50 +204,43 @@ macro_rules! impl_scalar_math_operator {
     };
 }
 
-impl_scalar_math_operator!(Tf, f32, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
-impl_scalar_math_operator!(Tf, f64, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
+impl_scalar_math_operator!(
+    Tf,
+    f32,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
+impl_scalar_math_operator!(
+    Tf,
+    f64,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
 
-impl_scalar_math_operator!(Tf, i8, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
-impl_scalar_math_operator!(Tf, i16, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
+impl_scalar_math_operator!(
+    Tf,
+    i8,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
+impl_scalar_math_operator!(
+    Tf,
+    i16,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
 
-impl_scalar_math_operator!(Tf, i32, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
-impl_scalar_math_operator!(Tf, i64, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
-impl_scalar_math_operator!(Tf, i128, [
-    (Add, add),
-    (Sub, sub),
-    (Mul, mul),
-    (Div, div)
-]);
+impl_scalar_math_operator!(
+    Tf,
+    i32,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
+impl_scalar_math_operator!(
+    Tf,
+    i64,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
+impl_scalar_math_operator!(
+    Tf,
+    i128,
+    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
+);
 impl_scalar_math_operator!(Tf, u8, [(Add, add), (Mul, mul), (Div, div)]);
 impl_scalar_math_operator!(Tf, u16, [(Add, add), (Mul, mul), (Div, div)]);
 

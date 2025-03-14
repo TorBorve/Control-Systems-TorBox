@@ -502,10 +502,10 @@ fn bounds_to_x_limits(bounds: &PlotBounds) -> [f64; 2] {
 }
 
 fn bounds_set_x_limits(bounds: &PlotBounds, x_limits: [f64; 2]) -> PlotBounds {
-    PlotBounds::from_min_max([x_limits[0], bounds.min()[1]], [
-        x_limits[1],
-        bounds.max()[1],
-    ])
+    PlotBounds::from_min_max(
+        [x_limits[0], bounds.min()[1]],
+        [x_limits[1], bounds.max()[1]],
+    )
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
