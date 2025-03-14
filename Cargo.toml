@@ -13,3 +13,4 @@ eframe = "0.31"
 libc = "0.2"
 nalgebra = "0.33"
 rayon = "1.10.0"
+egui_kittest = {version = "0.31", features = ["eframe"]}

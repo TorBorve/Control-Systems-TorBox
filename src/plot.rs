@@ -684,6 +684,7 @@ mod tests {
         tf::Tf,
         traits::Continuous,
     };
+    use egui_kittest::Harness;
 
     #[test]
     fn bodeplot() {
@@ -724,6 +725,10 @@ mod tests {
             .collect();
 
         bodeplot.add_system(mag_phase_freq_vec.into());
+
+        let app = BodePlotEgui::new(bodeplot);
+        let mut harness = Harness::new_eframe(|_| app);
+        harness.run_ok().unwrap();
     }
 
     #[test]
@@ -747,5 +752,9 @@ mod tests {
         let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.))
             .set_name("Pade 2");
         nyq_plot.add_system(data);
+
+        let mut harness =
+            Harness::new_eframe(|_| NyquistPlotEgui::new(nyq_plot));
+        harness.run_ok().unwrap();
     }
 }
