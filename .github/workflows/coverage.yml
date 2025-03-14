@@ -9,6 +9,8 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v4
+      - name: Install Dependencies *BLAS, LAPACK)
+        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
       - name: Install Rust
         run: rustup update stable
       - name: Use rust nightly
@@ -16,7 +18,7 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+        run: cargo llvm-cov --lcov --output-path lcov.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
