@@ -11,12 +11,8 @@ jobs:
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v4
-
-      - name: Install Dependencies (BLAS, LAPACK)
-        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
-
-      - name: Setup | Dependencies
-        run: sudo apt update && sudo apt-get install -y libfontconfig1-dev libfontconfig1
+        with:
+          submodules: true
 
       - name: Setup | Toolchain
         uses: dtolnay/rust-toolchain@nightly
@@ -37,9 +33,8 @@ jobs:
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v4
-        
-      - name: Install Dependencies (BLAS, LAPACK)
-        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
+        with:
+          submodules: true       
 
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
@@ -49,14 +44,15 @@ jobs:
 
       - name: Build | Check
         run: cargo check
+    
   tests:
     runs-on: ubuntu-latest
     steps:
       - name: Setup | Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
       
-      - name: Install Dependencies (BLAS, LAPACK)
-        run: sudo apt update && sudo apt install -y libblas-dev liblapack-dev
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -65,3 +61,48 @@ jobs:
 
       - name: Build | Tests
         run: cargo test
+    
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+        
+      - run: |
+          echo "CC=$(brew --prefix gcc@13)/bin/gcc-13" >> "${GITHUB_ENV}"
+          echo "FC=$(brew --prefix gcc@13)/bin/gfortran-13" >> "${GITHUB_ENV}"
+          echo "LIBRARY_PATH=$(brew --prefix gcc@13)/lib/gcc/13" >> "${GITHUB_ENV}"
+      
+      - name: Setup | Rust
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build | Tests
+        run: cargo test
+  
+  # test-windows:
+  #   runs-on: windows-latest
+  #   steps:
+  #     - name: Setup | Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
+  #     - name: "Setup Fortran"
+  #       uses: fortran-lang/setup-fortran@v1
+  #       id: setup-fortran
+  #       with:
+  #         compiler: intel-classic
+  #         version: '2021.10'
+      
+  #     - name: Setup | Rust
+  #       uses: dtolnay/rust-toolchain@nightly
+
+  #     - name: Rust Cache
+  #       uses: Swatinem/rust-cache@v2
+
+  #     - name: Build | Tests
+  #       run: cargo test

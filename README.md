@@ -33,3 +33,4 @@ Control Systems Torbox is a rust library for performing analysis, simulation and
 ## Resources
 
 - [plotters tutorial](https://github.com/wiseaidev/rust-data-analysis/blob/main/6-plotters-tutorial-part-1.ipynb)
+- [make rust-sys crate](https://kornel.ski/rust-sys-crate)

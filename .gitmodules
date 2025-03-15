@@ -1,0 +1,3 @@
+[submodule "SLICOT-Reference"]
+	path = SLICOT-Reference
+	url = https://github.com/SLICOT/SLICOT-Reference.git
