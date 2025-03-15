@@ -1,6 +1,9 @@
 name: CI
-on: [push, pull_request]
-
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 ## Inspired by https://github.com/simbleau/website
 jobs:
   lint:
