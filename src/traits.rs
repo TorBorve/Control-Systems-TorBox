@@ -61,19 +61,35 @@ impl_traits!(
     num_complex::c64(1.0, 0.0)
 );
 
-pub trait ToDecibel {
-    fn to_db(&self) -> Self;
+pub trait Mag2Db {
+    fn mag2db(&self) -> Self;
 }
 
-impl ToDecibel for f64 {
-    fn to_db(&self) -> Self {
+impl Mag2Db for f64 {
+    fn mag2db(&self) -> Self {
         20. * self.log10()
     }
 }
 
-impl ToDecibel for f32 {
-    fn to_db(&self) -> Self {
+impl Mag2Db for f32 {
+    fn mag2db(&self) -> Self {
         20. * self.log10()
+    }
+}
+
+pub trait Db2Mag {
+    fn db2mag(&self) -> Self;
+}
+
+impl Db2Mag for f64 {
+    fn db2mag(&self) -> Self {
+        10_f64.powf(self / 20.)
+    }
+}
+
+impl Db2Mag for f32 {
+    fn db2mag(&self) -> Self {
+        10_f32.powf(self / 20.)
     }
 }
 
@@ -118,3 +134,62 @@ impl Time for Continuous {}
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Discrete {}
 impl Time for Discrete {}
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::{FRAC_PI_2, PI};
+
+    use approx::{assert_abs_diff_eq, assert_relative_eq};
+    use rand::Rng;
+
+    use super::*;
+
+    #[test]
+    fn mag_db_covert() {
+        assert_abs_diff_eq!((1. as f64).mag2db(), 0.);
+        assert_abs_diff_eq!((1. as f32).mag2db(), 0.);
+
+        assert_abs_diff_eq!((20 as f64).db2mag(), 10.);
+        assert_abs_diff_eq!((20 as f32).db2mag(), 10.);
+
+        let mut rng = rand::rng();
+
+        for _ in 0..10000 {
+            let x: f64 = rng.random_range(-1.0..1000.0);
+            if x < 0. {
+                assert!((x as f32).mag2db().is_nan());
+                assert!((x as f64).mag2db().is_nan());
+            } else {
+                assert_abs_diff_eq!(
+                    (x as f32).mag2db().db2mag(),
+                    x as f32,
+                    epsilon = 1e-3
+                );
+                assert_abs_diff_eq!(
+                    (x as f64).mag2db().db2mag(),
+                    x as f64,
+                    epsilon = 1e-3
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn angle_convert() {
+        assert_abs_diff_eq!(FRAC_PI_2.rad2deg(), 90.);
+        assert_abs_diff_eq!(-180.0.deg2rad(), -PI);
+
+        let mut rng = rand::rng();
+        for _ in 0..10000 {
+            let x: f64 = rng.random_range(-100.0 * PI..100.0 * PI);
+            assert_relative_eq!(x.rad2deg().deg2rad(), x,);
+            assert_relative_eq!((x as f32).rad2deg().deg2rad(), x as f32);
+        }
+    }
+
+    #[test]
+    fn one_and_zero() {
+        assert!(f64::one().is_one());
+        assert!(f64::zero().is_zero());
+    }
+}

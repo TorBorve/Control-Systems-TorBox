@@ -36,7 +36,7 @@ where
 
 impl<T, U: Time> Tf<T, U>
 where
-    T: Zero + Clone,
+    T: Zero + One + Clone,
 {
     pub fn new(num: &[T], den: &[T]) -> Self {
         Self {
@@ -50,6 +50,10 @@ where
             rf,
             time: PhantomData::<U>,
         }
+    }
+
+    pub fn new_from_scalar(scalar: T) -> Self {
+        Self::new_from_rf(RationalFunction::new_from_scalar(scalar))
     }
 
     pub fn numerator(&self) -> &[T] {
@@ -131,7 +135,7 @@ macro_rules! impl_operator_tf {
     $(
         impl<T, U> $trait for Tf<T, U>
         where
-            T: $trait<Output = T> + Clone + Zero + Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T>,
+            T: $trait<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T>,
             U: Time,
         {
             type Output = Tf<T, U>;
@@ -147,7 +151,7 @@ impl_operator_tf!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 
 impl<T, U> Neg for Tf<T, U>
 where
-    T: Neg<Output = T> + Clone + Zero,
+    T: Neg<Output = T> + Clone + Zero + One,
     U: Time,
 {
     type Output = Tf<T, U>;
@@ -162,7 +166,7 @@ macro_rules! impl_compound_assign {
     $(
         impl<T, U: Time> $assign_trait for $struct_type<T, U>
         where
-            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Zero,
+            T: $trait<Output = T> + $assign_trait + One + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Zero,
         {
             fn $assign_method(&mut self, rhs: Self) {
                 *self = self.clone().$method(rhs)
@@ -311,6 +315,9 @@ mod tests {
             assert_abs_diff_eq!(y.im, y_expect.im);
         }
         println!("Tf cont: \n{}", tf);
+
+        let tf_z = Tf::<f64, Discrete>::new_from_rf(tf.rf);
+        println!("Tf discrete: \n {}", tf_z);
     }
 
     #[test]
@@ -332,6 +339,19 @@ mod tests {
             let x = rng.random::<f64>();
             assert_abs_diff_eq!(sys.eval(&x), (2. * x + 1.) / (x + 1.));
         }
+
+        let mut tf = Tf::s();
+        tf += Tf::new_from_scalar(1.0);
+        let tf2 = 1.0 + Tf::s();
+        assert_abs_diff_eq!(tf, tf2);
+    }
+
+    #[test]
+    fn tf_math() {
+        let tf = Tf::s() + 1. / (Tf::s() + 1.0);
+        let tf_neg = -tf.clone();
+        let tf_neg_neg = -tf_neg;
+        assert_eq!(tf, tf_neg_neg);
     }
 
     #[test]
@@ -360,5 +380,12 @@ mod tests {
         let sys = 1. / Tf::s();
         assert_eq!(sys.is_proper(), true);
         assert_eq!(sys.is_strictly_proper(), true);
+    }
+
+    #[test]
+    fn compare() {
+        let tf = Tf::s();
+        let tf = tf.clone() / (tf.clone() + 1.);
+        assert_eq!(tf.clone(), tf.clone());
     }
 }

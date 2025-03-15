@@ -2,7 +2,7 @@ use num_complex::{Complex64, c64};
 
 use crate::{
     tf::Tf,
-    traits::{Rad2Deg, Time, ToDecibel},
+    traits::{Mag2Db, Rad2Deg, Time},
 };
 
 pub fn lin_space(start: f64, end: f64, n: usize) -> Vec<f64> {
@@ -48,7 +48,7 @@ pub fn bode_freqs<U: Time>(
     for &omega in freqs {
         let c = c64(0., omega);
         let sys_val = sys.eval(&c);
-        mag_vec.push(sys_val.norm().to_db());
+        mag_vec.push(sys_val.norm().mag2db());
         phase_vec.push(sys_val.arg().rad2deg());
     }
     (mag_vec, phase_vec)

@@ -4,7 +4,7 @@ use egui::{Align, Color32, Layout, Ui};
 use egui_plot::{Legend, Line, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RGBAColor {
     pub r: u8,
     pub g: u8,
@@ -117,24 +117,6 @@ impl RGBAColor {
     fn to_egui(self) -> Color32 {
         Color32::from_rgba_premultiplied(self.r, self.g, self.b, self.a)
     }
-}
-
-#[allow(clippy::approx_constant, unused)]
-fn color_order(idx: usize) -> RGBAColor {
-    // Using same as MATLAB
-    let colors = [
-        [0., 0.4470, 0.7410],
-        [0.8500, 0.3250, 0.0980],
-        [0.9290, 0.6940, 0.1250],
-        [0.4940, 0.1840, 0.5560],
-        [0.4660, 0.6740, 0.1880],
-        [0.3010, 0.7450, 0.9330],
-        [0.6350, 0.0780, 0.1840],
-    ];
-
-    let idx = idx % colors.len();
-    let [r, g, b] = colors[idx];
-    RGBAColor::new((r * 255.) as u8, (g * 255.) as u8, (b * 255.) as u8, 255)
 }
 
 pub trait Plot {
@@ -687,8 +669,17 @@ mod tests {
     use egui_kittest::Harness;
 
     #[test]
+    fn colors() {
+        let red = RGBAColor::RED;
+        let red_new = RGBAColor::new(255, 0, 0, 255);
+        assert_eq!(red_new, red);
+    }
+
+    #[test]
     fn bodeplot() {
-        let bodeopts = BodePlotOptions::default();
+        let bodeopts = BodePlotOptions::new("ERROR WRONG TITLE")
+            .set_title("Bodeplot title")
+            .set_x_limits([0.1, 100.]);
         let mut bodeplot = BodePlot::new(bodeopts);
 
         let sys: Tf<f64, Continuous> = Tf::new(&[0.0, 1.0], &[1.0, 1.0]);
@@ -740,14 +731,16 @@ mod tests {
         let sys_p1 = sys.clone() * pade;
         let sys_p2 = sys.clone() * pade2;
 
-        let mut nyq_opts = NyquistPlotOptions::default();
+        let mut nyq_opts =
+            NyquistPlotOptions::default().set_title("Nyquist TITLE");
         nyq_opts = nyq_opts.set_x_limits([-5., 1.]).set_y_limits([-10., 10.]);
         let mut nyq_plot = NyquistPlot::new(nyq_opts);
         let nyq_data = nyquist(sys, 0.01, 100.);
         nyq_plot.add_system(nyq_data.into());
 
         let data = NyquistPlotData::new(nyquist(sys_p1, 0.01, 100.))
-            .set_name("Pade 1");
+            .set_name("Pade 1")
+            .set_color(RGBAColor::ORANGE);
         nyq_plot.add_system(data);
         let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.))
             .set_name("Pade 2");

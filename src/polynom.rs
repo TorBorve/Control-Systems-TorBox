@@ -729,6 +729,7 @@ mod tests {
         assert_eq!(p.clone() - 1.0, 0.0.into());
         assert_eq!(p.clone() + 1.0, 2.0.into());
         assert_eq!(p.clone() * 2.0, 2.0.into());
+        assert_eq!(p.clone() + 10., 10. + p.clone());
     }
 
     #[test]
@@ -837,5 +838,18 @@ mod tests {
 
         assert_eq!(rf.relative_degree(), 0);
         assert_eq!(rf.degree_num_den(), (2, 2));
+    }
+
+    #[test]
+    fn abs_diff_eq_test() {
+        assert!(Polynomial::<f64>::default_epsilon() > 0.);
+        assert!(RationalFunction::<f64>::default_epsilon() > 0.);
+
+        let pol = Polynomial::new(&[0.0, 1.0, 2.0, 0.0, 0.0]);
+        assert_abs_diff_eq!(pol.clone(), pol);
+
+        let rf =
+            RationalFunction::new_from_coeffs(&[1., 2., 4.], &[1., 4., 2., 8.]);
+        assert_abs_diff_eq!(rf.clone(), rf);
     }
 }
