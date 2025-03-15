@@ -15,5 +15,6 @@ run_command "cargo fmt --all -- --check"
 run_command "cargo clippy --all -- -D warnings"
 run_command "cargo test --all"
 run_command "cargo check"
+run_command "cargo llvm-cov --lcov --output-path target/llvm-cov-target/lcov.info"
 
 echo "✅ All checks passed successfully!"
