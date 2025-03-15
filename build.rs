@@ -1,5 +1,5 @@
 use make_cmd::make;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn main() {
     let slicot_dir = PathBuf::from("SLICOT-Reference/");
@@ -10,12 +10,20 @@ fn main() {
         "makefile_Unix"
     };
 
-    let mut make_args = vec!["lib", "-f", make_file, "-j8"];
-    if !cfg!(target_os = "windows") {
-        make_args.push("LPKAUXLIB=../liblpkaux.a");
-        make_args.push("SLICOTLIB=../libslicot.a");
+    let mut make_args: Vec<String> = vec![
+        "lib".to_string(),
+        "-f".to_string(),
+        make_file.to_string(),
+        "-j8".to_string(),
+    ];
+    if cfg!(target_os = "windows") {
+        make_args.push("HOME=.".to_string());
     } else {
-        make_args.push("HOME=.");
+        make_args.push("SLICOTLIB=../libslicot.a".to_string());
+        make_args.push("LPKAUXLIB=../liblpkaux.a".to_string());
+        if let Ok(fc) = env::var("FC") {
+            make_args.push(format!("FORTRAN={}", fc).to_string());
+        }
     }
 
     let status = make()
