@@ -14,3 +14,8 @@ libc = "0.2"
 nalgebra = "0.33"
 rayon = "1.10.0"
 egui_kittest = {version = "0.31", features = ["eframe"]}
+netlib-src = {version = "0.8.0", default-features = false, features = ["static"]}
+
+# BUILD dep
+[build-dependencies]
+make-cmd = "0.1.0"

@@ -1,4 +1,5 @@
 extern crate libc;
+extern crate netlib_src; // enable linking with blas and lapack
 use libc::{c_char, c_double, c_long};
 
 use nalgebra::DMatrix;
@@ -6,9 +7,6 @@ use nalgebra::DMatrix;
 use crate::{ss::Ss, tf::Tf, traits::Time};
 use std::{error::Error, ffi::CString};
 
-#[link(name = "slicot")]
-#[link(name = "blas")]
-#[link(name = "lapack")]
 unsafe extern "C" {
     fn tb04ad_(
         rowcol: *const c_char, // CHARACTER*1 -> Pointer to a single char
