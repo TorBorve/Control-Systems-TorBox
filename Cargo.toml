@@ -1,21 +1,31 @@
 [package]
 name = "control_systems_torbox"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
+authors = ["Tor Børve Rasmussen <tor.jobb.skule@gmail.com>"]
+description = "Control systems toolbox"
+homepage = "https://github.com/TorBorve/Control-Systems-TorBox"
+repository = "https://github.com/TorBorve/Control-Systems-TorBox"
+readme = "README.md"
+keywords = ["control", "systems", "toolbox", "state-space", "transfer-function"]
+categories = ["Algorithms", "Mathematics", "Science"]
+license = "MIT"
+
 
 [dependencies]
-rand = "0.9.0"
-approx = "0.5.1"
 num-complex = "0.4"
 egui = "0.31"
 egui_plot = "0.31"
 eframe = "0.31"
 libc = "0.2"
 nalgebra = "0.33"
-rayon = "1.10.0"
-egui_kittest = {version = "0.31", features = ["eframe"]}
 netlib-src = {version = "0.8.0"}
 
-# BUILD dep
+[dev-dependencies]
+rand = "0.9.0"
+egui_kittest = {version = "0.31", features = ["eframe"]}
+rayon = "1.10.0"
+approx = "0.5.1"
+
 [build-dependencies]
 make-cmd = "0.1.0"
