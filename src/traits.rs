@@ -1,11 +1,27 @@
 use std::fmt::Debug;
 
+/// A trait for types that can represent the concept of zero.
+///
+/// This trait provides a way to obtain the zero value of a type and check if a
+/// value is zero.
+///
+/// # Methods
+/// - `zero()`: Returns the zero value for the type.
+/// - `is_zero(&self)`: Checks if the value is equal to zero.
 pub trait Zero {
     fn zero() -> Self;
 
     fn is_zero(&self) -> bool;
 }
 
+/// A trait for types that can represent the concept of one.
+///
+/// This trait provides a way to obtain the one value of a type and check if a
+/// value is one.
+///
+/// # Methods
+/// - `one()`: Returns the one value for the type.
+/// - `is_one(&self)`: Checks if the value is equal to one.
 pub trait One {
     fn one() -> Self;
 
@@ -61,6 +77,12 @@ impl_traits!(
     num_complex::c64(1.0, 0.0)
 );
 
+/// A trait for types that can convert from magnitude to decibels.
+///
+/// This trait provides a method to convert a value from magnitude to decibels.
+///
+/// # Methods
+/// - `mag2db(&self)`: Converts the magnitude value to decibels.
 pub trait Mag2Db {
     fn mag2db(&self) -> Self;
 }
@@ -77,6 +99,12 @@ impl Mag2Db for f32 {
     }
 }
 
+/// A trait for types that can convert from decibels to magnitude.
+///
+/// This trait provides a method to convert a value from decibels to magnitude.
+///
+/// # Methods
+/// - `db2mag(&self)`: Converts the decibel value to magnitude.
 pub trait Db2Mag {
     fn db2mag(&self) -> Self;
 }
@@ -93,10 +121,22 @@ impl Db2Mag for f32 {
     }
 }
 
+/// A trait for types that can convert from radians to degrees.
+///
+/// This trait provides a method to convert a value from radians to degrees.
+///
+/// # Methods
+/// - `rad2deg(&self)`: Converts the radian value to degrees.
 pub trait Rad2Deg {
     fn rad2deg(&self) -> Self;
 }
 
+/// A trait for types that can convert from degrees to radians.
+///
+/// This trait provides a method to convert a value from degrees to radians.
+///
+/// # Methods
+/// - `deg2rad(&self)`: Converts the degree value to radians.
 pub trait Deg2Rad {
     fn deg2rad(&self) -> Self;
 }
@@ -125,12 +165,22 @@ impl Deg2Rad for f32 {
     }
 }
 
+/// A trait representing a time domain.
+///
+/// The `Time` trait serves as a marker for types representing different time
+/// representations.
+///
+/// # Implementers
+/// - `Continuous`: Represents continuous time domain.
+/// - `Discrete`: Represents discrete time domain.
 pub trait Time: Clone + Debug {}
 
+/// A type for representing continouos time domain
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Continuous {}
 impl Time for Continuous {}
 
+/// A type for representing discrete time domain
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Discrete {}
 impl Time for Discrete {}

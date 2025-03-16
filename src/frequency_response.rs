@@ -4,17 +4,44 @@ use crate::{
     tf::Tf,
     traits::{Mag2Db, Rad2Deg, Time},
 };
-
+/// Generates a linearly spaced iterator between `start` and `end`, inclusive.
+///
+/// # Arguments
+/// - `start`: The starting value of the sequence.
+/// - `end`: The ending value of the sequence.
+/// - `n`: The number of points to generate (must be greater than 1).
+///
+/// # Returns
+/// - An iterator producing `n` evenly spaced `f64` values from `start` to
+///   `end`.
+///
+/// # Panics
+/// - Panics if `n` is less than or equal to 1.
 pub fn lin_space(
     start: f64,
     end: f64,
     n: usize,
 ) -> impl ExactSizeIterator<Item = f64> {
-    assert!(n > 1, "n must be greater than one");
+    assert!(n >= 1, "n must be greater than or equal to one");
     let step = (end - start) / (n as f64 - 1.0);
     (0..n).map(move |i| start + step * i as f64)
 }
 
+/// Generates a logarithmically spaced iterator between `start` and `end`, using
+/// the specified logarithmic base.
+///
+/// # Arguments
+/// - `start`: The starting value of the sequence (must be greater than 0).
+/// - `end`: The ending value of the sequence (must be greater than 0).
+/// - `n`: The number of points to generate.
+/// - `base`: The logarithmic base to use for spacing.
+///
+/// # Returns
+/// - An iterator producing `n` logarithmically spaced `f64` values from `start`
+///   to `end`.
+///
+/// # Panics
+/// - Panics if `start` or `end` is less than or equal to 0.
 pub fn log_space(
     start: f64,
     end: f64,
@@ -37,6 +64,17 @@ pub fn log_space(
     nums.map(move |x| (base as f64).powf(x))
 }
 
+/// Computes the Bode plot (magnitude and phase) for a transfer function over a
+/// frequency range.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `min_freq`: The minimum frequency for the plot.
+/// - `max_freq`: The maximum frequency for the plot.
+///
+/// # Returns
+/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
+///   evaluated frequency.
 pub fn bode<U: Time>(
     sys: Tf<f64, U>,
     min_freq: f64,
@@ -46,6 +84,16 @@ pub fn bode<U: Time>(
     bode_freqs(sys, freqs)
 }
 
+/// Computes the Bode plot (magnitude and phase) for a transfer function over a
+/// given set of frequencies.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `freqs`: An iterator of frequencies to evaluate the system at.
+///
+/// # Returns
+/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
+///   evaluated frequency.
 pub fn bode_freqs<U: Time>(
     sys: Tf<f64, U>,
     freqs: impl Iterator<Item = f64>,
@@ -64,6 +112,15 @@ pub fn bode_freqs<U: Time>(
     mag_phase_freq_vec
 }
 
+/// Computes the Nyquist plot for a transfer function over a frequency range.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `min_freq`: The minimum frequency for the plot.
+/// - `max_freq`: The maximum frequency for the plot.
+///
+/// # Returns
+/// - A vector of complex numbers representing the Nyquist plot.
 pub fn nyquist<U: Time>(
     sys: Tf<f64, U>,
     min_freq: f64,
@@ -73,6 +130,15 @@ pub fn nyquist<U: Time>(
     nyquist_freqs(sys, freqs)
 }
 
+/// Computes the Nyquist plot for a transfer function over a given set of
+/// frequencies.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `freqs`: An iterator of frequencies to evaluate the system at.
+///
+/// # Returns
+/// - A vector of complex numbers representing the Nyquist plot.
 pub fn nyquist_freqs<U: Time>(
     sys: Tf<f64, U>,
     freqs: impl Iterator<Item = f64>,

@@ -4,6 +4,22 @@ use egui::{Align, Color32, Layout, Ui};
 use egui_plot::{Legend, Line, PlotBounds, PlotPoints, PlotUi};
 use num_complex::Complex64;
 
+/// A struct representing a color in the RGBA color space.
+///
+/// This struct holds four components: red (`r`), green (`g`), blue (`b`), and
+/// alpha (`a`) channels, where each channel is an 8-bit unsigned integer,
+/// meaning it ranges from 0 to 255.
+///
+/// # Examples
+///
+/// ```rust
+/// use control_systems_torbox::RGBAColor;
+/// let red = RGBAColor::RED;
+/// assert_eq!(red.r, 255);
+/// assert_eq!(red.g, 0);
+/// assert_eq!(red.b, 0);
+/// assert_eq!(red.a, 255);
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RGBAColor {
     pub r: u8,
@@ -13,7 +29,9 @@ pub struct RGBAColor {
 }
 
 impl RGBAColor {
-    // Common colors
+    /// Common colors represented by RGBAColor constants.
+    ///
+    /// These are predefined color constants for commonly used colors.
     pub const WHITE: RGBAColor = RGBAColor {
         r: 255,
         g: 255,
@@ -104,7 +122,14 @@ impl RGBAColor {
         b: 169,
         a: 255,
     };
-
+    /// Creates a new `RGBAColor` instance with the specified red, green, blue,
+    /// and alpha values.
+    ///
+    /// # Parameters
+    /// - `red`: The red channel value (0-255).
+    /// - `green`: The green channel value (0-255).
+    /// - `blue`: The blue channel value (0-255).
+    /// - `alpha`: The alpha (transparency) channel value (0-255).
     pub fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
         Self {
             r: red,
@@ -114,12 +139,30 @@ impl RGBAColor {
         }
     }
 
+    /// Converts the `RGBAColor` to a `Color32` type used in the `egui` library.
+    ///
+    /// # Returns
+    /// A `Color32` representation of the color.
     fn to_egui(self) -> Color32 {
         Color32::from_rgba_premultiplied(self.r, self.g, self.b, self.a)
     }
 }
 
+/// The `Plot` trait defines a common interface for types that can display a
+/// plot. Types implementing this trait should be able to show a plot in a
+/// graphical window.
 pub trait Plot {
+    /// Displays the plot in a new window with the given dimensions and name.
+    ///
+    /// # Arguments
+    ///
+    /// * `width` - The width of the plot window in pixels.
+    /// * `height` - The height of the plot window in pixels.
+    /// * `name` - The name of the plot window.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` indicating success or failure.
     fn show(
         self,
         width: usize,
@@ -129,6 +172,11 @@ pub trait Plot {
 }
 
 impl<T: eframe::App> Plot for T {
+    /// Implements the `Plot` trait for types that implement the `eframe::App`
+    /// trait.
+    ///
+    /// This function opens a new window with the given dimensions and runs the
+    /// application that implements the `eframe::App` trait.
     fn show(
         self,
         width: usize,
@@ -149,6 +197,8 @@ impl<T: eframe::App> Plot for T {
     }
 }
 
+/// `BodePlotData` represents the data for a Bode plot, including magnitude,
+/// phase, and frequency points.
 #[derive(Clone)]
 pub struct BodePlotData {
     mag_phase_freq_points: Vec<[f64; 3]>,
@@ -157,6 +207,17 @@ pub struct BodePlotData {
 }
 
 impl BodePlotData {
+    /// Creates a new `BodePlotData` with the given magnitude, phase, and
+    /// frequency points.
+    ///
+    /// # Arguments
+    ///
+    /// * `mag_phase_freq_points` - A vector of 3-element arrays representing
+    ///   the magnitude, phase, and frequency points for the Bode plot.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotData`.
     pub fn new(mag_phase_freq_points: Vec<[f64; 3]>) -> Self {
         Self {
             mag_phase_freq_points,
@@ -165,10 +226,29 @@ impl BodePlotData {
         }
     }
 
+    /// Sets the name for the Bode plot data.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name to set for the Bode plot data.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotData` with the updated name.
     pub fn set_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
     }
+
+    /// Sets the color for the Bode plot data.
+    ///
+    /// # Arguments
+    ///
+    /// * `color` - The color to set for the Bode plot data.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotData` with the updated color.
     pub fn set_color(mut self, color: RGBAColor) -> Self {
         self.color = Some(color);
         self
@@ -176,11 +256,23 @@ impl BodePlotData {
 }
 
 impl From<Vec<[f64; 3]>> for BodePlotData {
+    /// Converts a vector of 3-element arrays to a `BodePlotData` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - A vector of 3-element arrays representing magnitude, phase,
+    ///   and frequency points.
+    ///
+    /// # Returns
+    ///
+    /// A `BodePlotData` instance.
     fn from(value: Vec<[f64; 3]>) -> Self {
         BodePlotData::new(value)
     }
 }
 
+/// `BodePlotOptions` holds the options for configuring a Bode plot, such as the
+/// title and axis limits.
 #[derive(Default, Clone)]
 pub struct BodePlotOptions {
     title: String,
@@ -188,6 +280,15 @@ pub struct BodePlotOptions {
 }
 
 impl BodePlotOptions {
+    /// Creates a new `BodePlotOptions` instance with the given title.
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - The title to set for the Bode plot.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotOptions`.
     pub fn new(title: &str) -> Self {
         Self {
             title: title.to_string(),
@@ -195,17 +296,36 @@ impl BodePlotOptions {
         }
     }
 
+    /// Sets the title for the Bode plot options.
+    ///
+    /// # Arguments
+    ///
+    /// * `title` - The title to set for the Bode plot.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotOptions` with the updated title.
     pub fn set_title(mut self, title: &str) -> Self {
         self.title = title.to_string();
         self
     }
 
+    /// Sets the x-axis limits for the Bode plot options.
+    ///
+    /// # Arguments
+    ///
+    /// * `x_limits` - The x-axis limits as a 2-element array `[min, max]`.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotOptions` with the updated x-axis limits.
     pub fn set_x_limits(mut self, x_limits: [f64; 2]) -> Self {
         self.x_limits = Some(x_limits);
         self
     }
 }
 
+/// `BodePlot` holds the configuration options and data for a Bode plot.
 #[derive(Default, Clone)]
 pub struct BodePlot {
     options: BodePlotOptions,
@@ -213,6 +333,15 @@ pub struct BodePlot {
 }
 
 impl BodePlot {
+    /// Creates a new `BodePlot` with the given options.
+    ///
+    /// # Arguments
+    ///
+    /// * `options` - The options to configure the Bode plot.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlot`.
     pub fn new(options: BodePlotOptions) -> Self {
         Self {
             options,
@@ -220,12 +349,23 @@ impl BodePlot {
         }
     }
 
+    // Adds a system's Bode plot data to the `BodePlot`.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - The `BodePlotData` for the system.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the `BodePlot` instance for method chaining.
     pub fn add_system(&mut self, data: BodePlotData) -> &mut Self {
         self.plot_data.push(data);
         self
     }
 }
 
+/// `BodePlotEgui` is a wrapper for displaying the `BodePlot` using the `eframe`
+/// GUI framework.
 #[derive(Clone)]
 pub struct BodePlotEgui {
     bode: BodePlot,
@@ -236,6 +376,15 @@ pub struct BodePlotEgui {
 }
 
 impl BodePlotEgui {
+    /// Creates a new `BodePlotEgui` instance with the given `BodePlot` data.
+    ///
+    /// # Arguments
+    ///
+    /// * `bode` - The `BodePlot` instance to be wrapped by the `BodePlotEgui`.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `BodePlotEgui`.
     pub fn new(bode: BodePlot) -> Self {
         let bounds = BodePlotEgui::get_mag_bounds(
             bode.options.x_limits,
@@ -256,12 +405,17 @@ impl BodePlotEgui {
 }
 
 impl From<BodePlot> for BodePlotEgui {
+    /// Converts a `BodePlot` instance into a `BodePlotEgui` instance.
     fn from(value: BodePlot) -> Self {
         Self::new(value)
     }
 }
 
 impl eframe::App for BodePlotEgui {
+    /// Updates the `BodePlotEgui` GUI on each frame.
+    ///
+    /// This function is called to update the user interface and plot the
+    /// magnitude and phase plots.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.with_layout(Layout::right_to_left(Align::RIGHT), |ui| {
@@ -419,6 +573,42 @@ impl BodePlotEgui {
     }
 }
 
+/// Implements the `Plot` trait for the `BodePlot` struct.
+///
+/// This implementation defines how to display a `BodePlot` using the `Plot`
+/// trait's `show` method, which delegates the rendering of the plot to the
+/// `BodePlotEgui` struct for use with the `eframe` framework.
+///
+/// # Arguments
+///
+/// * `self` - The `BodePlot` instance that is being displayed.
+/// * `width` - The width of the plot window in pixels.
+/// * `height` - The height of the plot window in pixels.
+/// * `name` - A string representing the name of the plot window, used for
+///   identification in the UI.
+///
+/// # Returns
+///
+/// This method returns a `Result<(), Box<dyn std::error::Error + 'static>>`,
+/// which represents the success or failure of showing the plot. If successful,
+/// the result is `Ok(())`, and if there is an error, it returns a boxed error
+/// type.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use control_systems_torbox::*;
+/// let bode_data = vec![
+///     [1.0, 2.0, 3.0],
+///     [1.1, 2.1, 3.1],
+///     [1.2, 2.2, 3.2],
+/// ];
+///
+/// let mut bode = BodePlot::new(BodePlotOptions::new("Sample Bode Plot"));
+/// bode.add_system(BodePlotData::new(bode_data));
+///
+/// bode.show(800, 600, "Bode Plot Example").unwrap();
+/// ```
 impl Plot for BodePlot {
     fn show(
         self,
@@ -491,8 +681,21 @@ fn bounds_set_x_limits(bounds: &PlotBounds, x_limits: [f64; 2]) -> PlotBounds {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-/// Nyquist
+// Nyquist
 //////////////////////////////////////////////////////////////////////////////////////////////
+
+/// A struct representing the data points for a Nyquist plot.
+///
+/// This struct stores the data points for the Nyquist plot, as well as optional
+/// metadata such as the name of the system and the color for plotting.
+///
+/// # Fields
+///
+/// - `data_points`: A `Vec<Complex64>` that contains the data points to be
+///   plotted.
+/// - `name`: A `String` representing the name of the system or dataset. It is
+///   used for labeling the plot.
+/// - `color`: An optional `RGBAColor` that defines the color of the plot line.
 #[derive(Clone, Debug)]
 pub struct NyquistPlotData {
     data_points: Vec<Complex64>,
@@ -501,6 +704,14 @@ pub struct NyquistPlotData {
 }
 
 impl NyquistPlotData {
+    /// Creates a new `NyquistPlotData` instance with the given data points.
+    ///
+    /// # Arguments
+    /// - `data_points`: A vector of complex numbers representing the Nyquist
+    ///   plot data points.
+    ///
+    /// # Returns
+    /// A new instance of `NyquistPlotData`.
     pub fn new(data_points: Vec<Complex64>) -> Self {
         Self {
             data_points,
@@ -509,11 +720,25 @@ impl NyquistPlotData {
         }
     }
 
+    /// Sets the name of the Nyquist plot data.
+    ///
+    /// # Arguments
+    /// - `name`: The name to be set for the Nyquist plot data.
+    ///
+    /// # Returns
+    /// A new instance of `NyquistPlotData` with the name set.
     pub fn set_name(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
     }
 
+    /// Sets the color for the Nyquist plot data.
+    ///
+    /// # Arguments
+    /// - `color`: The `RGBAColor` to be used for plotting.
+    ///
+    /// # Returns
+    /// A new instance of `NyquistPlotData` with the color set.
     pub fn set_color(mut self, color: RGBAColor) -> Self {
         self.color = Some(color);
         self
@@ -526,6 +751,16 @@ impl From<Vec<Complex64>> for NyquistPlotData {
     }
 }
 
+/// A struct representing the options for a Nyquist plot.
+///
+/// This struct holds the configuration settings for the Nyquist plot, such as
+/// title, axis limits, etc.
+///
+/// # Fields
+///
+/// - `title`: The title of the plot.
+/// - `x_limits`: Optional X-axis limits as an array `[min, max]`.
+/// - `y_limits`: Optional Y-axis limits as an array `[min, max]`.
 #[derive(Default, Clone, Debug)]
 pub struct NyquistPlotOptions {
     title: String,
@@ -534,22 +769,35 @@ pub struct NyquistPlotOptions {
 }
 
 impl NyquistPlotOptions {
+    /// Sets the title for Nyquist plot.
     pub fn set_title(mut self, title: &str) -> Self {
         self.title = title.to_string();
         self
     }
 
+    /// Sets the x-limits for Nyquist plot.
     pub fn set_x_limits(mut self, x_limits: [f64; 2]) -> Self {
         self.x_limits = Some(x_limits);
         self
     }
 
+    /// Sets the y-limits for Nyquist plot.
     pub fn set_y_limits(mut self, y_limits: [f64; 2]) -> Self {
         self.y_limits = Some(y_limits);
         self
     }
 }
 
+/// A struct representing the Nyquist plot.
+///
+/// This struct contains the data and options to plot a Nyquist plot, including
+/// the `NyquistPlotOptions` and the actual data in `NyquistPlotData` format.
+///
+/// # Fields
+/// - `options`: The configuration options for the Nyquist plot (title, axis
+///   limits).
+/// - `plot_data`: A vector of `NyquistPlotData` representing the systems or
+///   datasets to plot.
 #[derive(Debug, Default, Clone)]
 pub struct NyquistPlot {
     options: NyquistPlotOptions,
@@ -557,6 +805,13 @@ pub struct NyquistPlot {
 }
 
 impl NyquistPlot {
+    /// Creates a new `NyquistPlot` with the given options.
+    ///
+    /// # Arguments
+    /// - `options`: The configuration options for the plot.
+    ///
+    /// # Returns
+    /// A new instance of `NyquistPlot`.
     pub fn new(options: NyquistPlotOptions) -> Self {
         Self {
             options,
@@ -564,18 +819,40 @@ impl NyquistPlot {
         }
     }
 
+    // Adds a system's data to the Nyquist plot.
+    ///
+    /// # Arguments
+    /// - `data`: The data for a system to be plotted.
+    ///
+    /// # Returns
+    /// A mutable reference to the `NyquistPlot` instance for method chaining.
     pub fn add_system(&mut self, data: NyquistPlotData) -> &mut Self {
         self.plot_data.push(data);
         self
     }
 }
 
+/// A helper struct for rendering the Nyquist plot using the `eframe` framework.
+///
+/// This struct wraps a `NyquistPlot` and handles the display logic using the
+/// `eframe::App` trait.
+///
+/// # Fields
+/// - `nyq`: The `NyquistPlot` instance to be displayed.
+/// - `init`: A flag to ensure that the plot bounds are set only once.
 pub struct NyquistPlotEgui {
     nyq: NyquistPlot,
     init: bool,
 }
 
 impl NyquistPlotEgui {
+    /// Creates a new `NyquistPlotEgui` instance.
+    ///
+    /// # Arguments
+    /// - `nyq`: The `NyquistPlot` instance to be rendered.
+    ///
+    /// # Returns
+    /// A new instance of `NyquistPlotEgui`.
     pub fn new(nyq: NyquistPlot) -> Self {
         Self { nyq, init: false }
     }
@@ -647,6 +924,10 @@ impl NyquistPlotEgui {
 }
 
 impl Plot for NyquistPlot {
+    /// Implements the `Plot` trait for `NyquistPlot`.
+    ///
+    /// This implementation allows the `NyquistPlot` to be displayed in a window
+    /// by utilizing the `NyquistPlotEgui` struct.
     fn show(
         self,
         width: usize,

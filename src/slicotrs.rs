@@ -8,12 +8,13 @@ use crate::{ss::Ss, tf::Tf, traits::Time};
 use std::{error::Error, ffi::CString};
 
 unsafe extern "C" {
+    /// SLICOT transform state-space to transfer matrix. See [SLICOT documentation](https://github.com/TorBorve/SLICOT-Reference)
     fn tb04ad_(
-        rowcol: *const c_char, // CHARACTER*1 -> Pointer to a single char
-        n: *const c_long,      // INTEGER
+        rowcol: *const c_char,
+        n: *const c_long,
         m: *const c_long,
         p: *const c_long,
-        a: *mut c_double, // DOUBLE PRECISION array
+        a: *mut c_double,
         lda: *const c_long,
         b: *mut c_double,
         ldb: *const c_long,
@@ -21,22 +22,34 @@ unsafe extern "C" {
         ldc: *const c_long,
         d: *const c_double,
         ldd: *const c_long,
-        nr: *mut c_long,       // Output INTEGER
-        index: *mut c_long,    // INTEGER array
-        dcoeff: *mut c_double, // DOUBLE PRECISION array
+        nr: *mut c_long,
+        index: *mut c_long,
+        dcoeff: *mut c_double,
         lddcoe: *const c_long,
-        ucoeff: *mut c_double, // DOUBLE PRECISION array
+        ucoeff: *mut c_double,
         lduco1: *const c_long,
         lduco2: *const c_long,
         tol1: *const c_double,
         tol2: *const c_double,
-        iwork: *mut c_long,   // INTEGER array
-        dwork: *mut c_double, // DOUBLE PRECISION array
+        iwork: *mut c_long,
+        dwork: *mut c_double,
         ldwork: *const c_long,
-        info: *mut c_long, // Output INTEGER
+        info: *mut c_long,
     );
 }
 
+/// Converts a state-space system (A, B, C, D) into a transfer function using
+/// the SLICOT `tb04ad_` function.
+///
+/// # Parameters:
+/// - `a`: A `DMatrix` representing the state matrix `A`.
+/// - `b`: A `DMatrix` representing the input matrix `B`.
+/// - `c`: A `DMatrix` representing the output matrix `C`.
+/// - `d`: A `DMatrix` representing the direct transmission matrix `D`.
+///
+/// # Returns:
+/// A `Result` containing the transfer function (`Tf<f64, U>`) or an error
+/// (`Box<dyn Error>`).
 pub fn ss2tf_tb04ad<U: Time + 'static>(
     a: &DMatrix<f64>,
     b: &DMatrix<f64>,

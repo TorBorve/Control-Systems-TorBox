@@ -12,6 +12,16 @@ use crate::{
     traits::{Continuous, Discrete, One, Time, Zero},
 };
 
+/// A transfer function representation.
+///
+/// This struct is parameterized by `T` (the type of coefficients) and `U` (the
+/// time domain, either `Continuous` or `Discrete`).
+///
+/// # Type Parameters
+/// - `T`: The type of the coefficients of the transfer function (e.g., `f64`,
+///   `i32`, etc.).
+/// - `U`: The time domain of the transfer function (either `Continuous` or
+///   `Discrete`).
 #[derive(Clone, Debug)]
 pub struct Tf<T, U: Time> {
     rf: RationalFunction<T>,
@@ -38,6 +48,14 @@ impl<T, U: Time> Tf<T, U>
 where
     T: Zero + One + Clone,
 {
+    /// Creates a new transfer function from a given numerator and denominator.
+    ///
+    /// # Arguments
+    /// - `num`: A slice representing the numerator coefficients.
+    /// - `den`: A slice representing the denominator coefficients.
+    ///
+    /// # Returns
+    /// Returns a new transfer function.
     pub fn new(num: &[T], den: &[T]) -> Self {
         Self {
             rf: RationalFunction::new_from_coeffs(num, den),
@@ -45,21 +63,43 @@ where
         }
     }
 
+    /// Creates a new transfer function from an existing rational function.
+    ///
+    /// # Arguments
+    /// - `rf`: A `RationalFunction<T>` to be used for the transfer function.
+    ///
+    /// # Returns
+    /// Returns a new transfer function.
     pub fn new_from_rf(rf: RationalFunction<T>) -> Self {
         Self {
             rf,
             time: PhantomData::<U>,
         }
     }
-
+    /// Creates a new transfer function from a scalar value.
+    ///
+    /// # Arguments
+    /// - `scalar`: A scalar value to create the transfer function.
+    ///
+    /// # Returns
+    /// Returns a new transfer function with the scalar as both the numerator
+    /// and denominator.
     pub fn new_from_scalar(scalar: T) -> Self {
         Self::new_from_rf(RationalFunction::new_from_scalar(scalar))
     }
 
+    /// Returns the numerator coefficients of the transfer function.
+    ///
+    /// # Returns
+    /// A slice of the numerator coefficients.
     pub fn numerator(&self) -> &[T] {
         self.rf.numerator()
     }
 
+    /// Returns the denominator coefficients of the transfer function.
+    ///
+    /// # Returns
+    /// A slice of the denominator coefficients.
     pub fn denominator(&self) -> &[T] {
         self.rf.denominator()
     }
@@ -75,18 +115,34 @@ where
         + Default
         + AddAssign,
 {
+    /// Normalizes the transfer function such that the highest coefficient of
+    /// the denominator is one.
+    ///
+    /// I.e. tf = (a0 + ... + a_m s^m) / (b0 + ... + 1 s^n)
+    ///
+    /// # Returns
+    /// A new normalized transfer function.
     pub fn normalize(self) -> Self {
         Tf::new_from_rf(self.rf.normalize())
     }
 }
 
 impl Tf<f64, Continuous> {
+    /// Returns a transfer function representing continuous-time laplace
+    /// operator
+    ///
+    /// # Returns
+    /// continuous-time lapace operator, s, `Tf<f64, Continuous>`.
     pub fn s() -> Self {
         Tf::new(&[0., 1.], &[1.])
     }
 }
 
 impl Tf<f64, Discrete> {
+    /// Returns a transfer function representing discrete-time laplace operator
+    ///
+    /// # Returns
+    /// discrete-time lapace operator, s, `Tf<f64, Discrete>`.
     pub fn z() -> Self {
         Tf::new(&[0., 1.], &[1.])
     }
@@ -113,18 +169,38 @@ impl<T, U: Time> Tf<T, U>
 where
     T: Zero,
 {
+    /// Returns the degree of the numerator and denominator of the transfer
+    /// function.
+    ///
+    /// # Returns
+    /// A tuple with the degree of the numerator and the denominator.
     pub fn degree_num_den(&self) -> (usize, usize) {
         self.rf.degree_num_den()
     }
 
+    /// Returns the relative degree of the transfer function.
+    ///
+    /// I.e. degree numerator - degree denominator
+    ///
+    /// # Returns
+    /// The relative degree of the transfer function.
     pub fn relative_degree(&self) -> i32 {
         self.rf.relative_degree()
     }
 
+    /// Returns `true` if the transfer function is proper (relative degree ≤ 0).
+    ///
+    /// # Returns
+    /// `true` if the transfer function is proper, `false` otherwise.
     pub fn is_proper(&self) -> bool {
         self.relative_degree() <= 0
     }
 
+    /// Returns `true` if the transfer function is strictly proper (relative
+    /// degree < 0).
+    ///
+    /// # Returns
+    /// `true` if the transfer function is strictly proper, `false` otherwise.
     pub fn is_strictly_proper(&self) -> bool {
         self.relative_degree() < 0
     }
@@ -255,6 +331,14 @@ impl<T, U: Time> Tf<T, U>
 where
     T: One + Zero + Mul<Output = T> + AddAssign + Clone,
 {
+    /// Evaluates the transfer function at a given input `x`. Typically x = j
+    /// omega
+    ///
+    /// # Arguments
+    /// - `x`: The input value to evaluate the transfer function at.
+    ///
+    /// # Returns
+    /// The result of evaluating the transfer function at `x`.
     pub fn eval<N>(&self, x: &N) -> N
     where
         N: Clone
@@ -272,6 +356,13 @@ impl<T, U: Time> Tf<T, U>
 where
     T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default,
 {
+    /// Raises the transfer function to a specified integer power.
+    ///
+    /// # Arguments
+    /// - `exp`: The exponent to which the transfer function should be raised.
+    ///
+    /// # Returns
+    /// A new transfer function raised to the specified power.
     pub fn powi(self, exp: i32) -> Self {
         let new_rf = self.rf.powi(exp);
         Tf::new_from_rf(new_rf)
