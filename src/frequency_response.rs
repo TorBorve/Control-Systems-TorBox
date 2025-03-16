@@ -5,13 +5,22 @@ use crate::{
     traits::{Mag2Db, Rad2Deg, Time},
 };
 
-pub fn lin_space(start: f64, end: f64, n: usize) -> Vec<f64> {
+pub fn lin_space(
+    start: f64,
+    end: f64,
+    n: usize,
+) -> impl ExactSizeIterator<Item = f64> {
     assert!(n > 1, "n must be greater than one");
     let step = (end - start) / (n as f64 - 1.0);
-    (0..n).map(|i| start + step * i as f64).collect()
+    (0..n).map(move |i| start + step * i as f64)
 }
 
-pub fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
+pub fn log_space(
+    start: f64,
+    end: f64,
+    n: usize,
+    base: usize,
+) -> impl ExactSizeIterator<Item = f64> {
     assert!(
         start > 0.,
         "logarithm of negative numbers are not implemented"
@@ -25,33 +34,34 @@ pub fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
 
     let nums = lin_space(start_log, end_log, n);
 
-    nums.iter().map(|x| (base as f64).powf(*x)).collect()
+    nums.map(move |x| (base as f64).powf(x))
 }
 
 pub fn bode<U: Time>(
     sys: Tf<f64, U>,
     min_freq: f64,
     max_freq: f64,
-) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+) -> Vec<[f64; 3]> {
     let freqs = log_space(min_freq, max_freq, 1000, 10);
-    let (mag_vec, phase_vec) = bode_freqs(sys, freqs.as_slice());
-    (mag_vec, phase_vec, freqs)
+    bode_freqs(sys, freqs)
 }
 
 pub fn bode_freqs<U: Time>(
     sys: Tf<f64, U>,
-    freqs: &[f64],
-) -> (Vec<f64>, Vec<f64>) {
-    let mut mag_vec = Vec::with_capacity(freqs.len());
-    let mut phase_vec = Vec::with_capacity(freqs.len());
+    freqs: impl Iterator<Item = f64>,
+) -> Vec<[f64; 3]> {
+    let mut mag_phase_freq_vec = Vec::with_capacity(freqs.size_hint().0);
 
-    for &omega in freqs {
+    for omega in freqs {
         let c = c64(0., omega);
         let sys_val = sys.eval(&c);
-        mag_vec.push(sys_val.norm().mag2db());
-        phase_vec.push(sys_val.arg().rad2deg());
+        mag_phase_freq_vec.push([
+            sys_val.norm().mag2db(),
+            sys_val.arg().rad2deg(),
+            omega,
+        ]);
     }
-    (mag_vec, phase_vec)
+    mag_phase_freq_vec
 }
 
 pub fn nyquist<U: Time>(
@@ -60,15 +70,21 @@ pub fn nyquist<U: Time>(
     max_freq: f64,
 ) -> Vec<Complex64> {
     let freqs = log_space(min_freq, max_freq, 1000, 10);
-    nyquist_freqs(sys, freqs.as_slice())
+    nyquist_freqs(sys, freqs)
 }
 
 pub fn nyquist_freqs<U: Time>(
     sys: Tf<f64, U>,
-    freqs: &[f64],
+    freqs: impl Iterator<Item = f64>,
 ) -> Vec<Complex64> {
-    let pos_freqs = freqs.iter().map(|freq| sys.eval(&c64(0., *freq)));
-    let neg_freqs = freqs.iter().rev().map(|freq| sys.eval(&c64(0., -*freq)));
+    let mut pos_vals = Vec::with_capacity(freqs.size_hint().0);
+    let mut neg_vals = Vec::with_capacity(freqs.size_hint().0);
 
-    pos_freqs.chain(neg_freqs).collect()
+    for freq in freqs {
+        pos_vals.push(sys.eval(&c64(0., freq)));
+        neg_vals.push(sys.eval(&c64(0., -freq)));
+    }
+
+    pos_vals.extend(neg_vals.iter().rev());
+    pos_vals
 }
