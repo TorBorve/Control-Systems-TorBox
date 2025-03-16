@@ -2,12 +2,55 @@ use crate::{slicotrs::ss2tf_tb04ad, ss::Ss, tf::Tf, traits::Time};
 use nalgebra::DMatrix;
 use std::error::Error;
 
+/// Converts a state-space representation to a transfer function.
+///
+/// # Arguments
+///
+/// * `ss` - A reference to a state-space system.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a transfer function (`Tf<f64, U>`) or an error
+/// if the conversion fails.
+///
+/// # Example
+///
+/// ```rust
+/// use control_systems_torbox::*;
+/// let ss = tf2ss(1.0/Tf::s(), SsRealization::ControllableCF).unwrap();
+/// let tf = ss2tf::<Continuous>(&ss);
+/// ```
 pub fn ss2tf<U: Time + 'static>(
     ss: &Ss<U>,
 ) -> Result<Tf<f64, U>, Box<dyn Error + 'static>> {
     ss2tf_mat(ss.a(), ss.b(), ss.c(), ss.d())
 }
 
+/// Converts state-space matrices to a transfer function.
+///
+/// # Arguments
+///
+/// * `a` - State matrix.
+/// * `b` - Input matrix.
+/// * `c` - Output matrix.
+/// * `d` - Feedthrough matrix.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a transfer function (`Tf<f64, U>`) or an error
+/// if the conversion fails.
+///
+/// # Example
+///
+/// ```rust
+/// use control_systems_torbox::*;
+/// use nalgebra::DMatrix;
+/// let a = DMatrix::identity(1, 1);
+/// let b = DMatrix::identity(1, 1);
+/// let c = DMatrix::identity(1, 1);
+/// let d = DMatrix::zeros(1, 1);
+/// let tf = ss2tf_mat::<Discrete>(&a, &b, &c, &d);
+/// ```
 pub fn ss2tf_mat<U: Time + 'static>(
     a: &DMatrix<f64>,
     b: &DMatrix<f64>,
@@ -17,6 +60,26 @@ pub fn ss2tf_mat<U: Time + 'static>(
     ss2tf_tb04ad::<U>(a, b, c, d)
 }
 
+/// Converts a transfer function to a state-space representation.
+///
+/// # Arguments
+///
+/// * `tf` - A transfer function (`Tf<f64, U>`).
+/// * `method` - The realization method used for the conversion such as
+///   Controllable Canonical Form or Observable Canonical Form.
+///
+/// # Returns
+///
+/// Returns a `Result` containing a state-space system (`Ss<U>`) or an error if
+/// the conversion fails.
+///
+/// # Example
+///
+/// ```rust
+/// use control_systems_torbox::*;
+/// let tf = 1.0/Tf::s();
+/// let ss = tf2ss(tf, SsRealization::ControllableCF);
+/// ```
 pub fn tf2ss<U: Time + 'static>(
     tf: Tf<f64, U>,
     method: SsRealization,
@@ -85,6 +148,12 @@ fn tf2ss_controllable<U: Time + 'static>(
     Ss::<U>::new(a, b, c, d)
 }
 
+/// Enumeration for the different realizations of state-space systems.
+///
+/// # Variants
+///
+/// * `ObservableCF` - Observable canonical form.
+/// * `ControllableCF` - Controllable canonical form.
 #[derive(Debug, Clone, Copy, Default)]
 pub enum SsRealization {
     #[default]

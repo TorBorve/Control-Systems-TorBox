@@ -1,7 +1,7 @@
 ## Features
 
 - [X] Transfer functions
-- [ ] State Space
+- [X] State Space
 - [ ] General Linear Time Invariant systems. (delays in feedback)
 - [ ] Connecting and feedback of LTI systems.
 - [ ] poles and zeros of LTI systems

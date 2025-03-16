@@ -4,14 +4,50 @@ use crate::{
     tf::Tf,
     traits::{Mag2Db, Rad2Deg, Time},
 };
-
-pub fn lin_space(start: f64, end: f64, n: usize) -> Vec<f64> {
-    assert!(n > 1, "n must be greater than one");
+/// Generates a linearly spaced iterator between `start` and `end`, inclusive.
+///
+/// # Arguments
+/// - `start`: The starting value of the sequence.
+/// - `end`: The ending value of the sequence.
+/// - `n`: The number of points to generate (must be greater than 1).
+///
+/// # Returns
+/// - An iterator producing `n` evenly spaced `f64` values from `start` to
+///   `end`.
+///
+/// # Panics
+/// - Panics if `n` is less than or equal to 1.
+pub fn lin_space(
+    start: f64,
+    end: f64,
+    n: usize,
+) -> impl ExactSizeIterator<Item = f64> {
+    assert!(n >= 1, "n must be greater than or equal to one");
     let step = (end - start) / (n as f64 - 1.0);
-    (0..n).map(|i| start + step * i as f64).collect()
+    (0..n).map(move |i| start + step * i as f64)
 }
 
-pub fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
+/// Generates a logarithmically spaced iterator between `start` and `end`, using
+/// the specified logarithmic base.
+///
+/// # Arguments
+/// - `start`: The starting value of the sequence (must be greater than 0).
+/// - `end`: The ending value of the sequence (must be greater than 0).
+/// - `n`: The number of points to generate.
+/// - `base`: The logarithmic base to use for spacing.
+///
+/// # Returns
+/// - An iterator producing `n` logarithmically spaced `f64` values from `start`
+///   to `end`.
+///
+/// # Panics
+/// - Panics if `start` or `end` is less than or equal to 0.
+pub fn log_space(
+    start: f64,
+    end: f64,
+    n: usize,
+    base: usize,
+) -> impl ExactSizeIterator<Item = f64> {
     assert!(
         start > 0.,
         "logarithm of negative numbers are not implemented"
@@ -25,50 +61,96 @@ pub fn log_space(start: f64, end: f64, n: usize, base: usize) -> Vec<f64> {
 
     let nums = lin_space(start_log, end_log, n);
 
-    nums.iter().map(|x| (base as f64).powf(*x)).collect()
+    nums.map(move |x| (base as f64).powf(x))
 }
 
+/// Computes the Bode plot (magnitude and phase) for a transfer function over a
+/// frequency range.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `min_freq`: The minimum frequency for the plot.
+/// - `max_freq`: The maximum frequency for the plot.
+///
+/// # Returns
+/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
+///   evaluated frequency.
 pub fn bode<U: Time>(
     sys: Tf<f64, U>,
     min_freq: f64,
     max_freq: f64,
-) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+) -> Vec<[f64; 3]> {
     let freqs = log_space(min_freq, max_freq, 1000, 10);
-    let (mag_vec, phase_vec) = bode_freqs(sys, freqs.as_slice());
-    (mag_vec, phase_vec, freqs)
+    bode_freqs(sys, freqs)
 }
 
+/// Computes the Bode plot (magnitude and phase) for a transfer function over a
+/// given set of frequencies.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `freqs`: An iterator of frequencies to evaluate the system at.
+///
+/// # Returns
+/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
+///   evaluated frequency.
 pub fn bode_freqs<U: Time>(
     sys: Tf<f64, U>,
-    freqs: &[f64],
-) -> (Vec<f64>, Vec<f64>) {
-    let mut mag_vec = Vec::with_capacity(freqs.len());
-    let mut phase_vec = Vec::with_capacity(freqs.len());
+    freqs: impl Iterator<Item = f64>,
+) -> Vec<[f64; 3]> {
+    let mut mag_phase_freq_vec = Vec::with_capacity(freqs.size_hint().0);
 
-    for &omega in freqs {
+    for omega in freqs {
         let c = c64(0., omega);
         let sys_val = sys.eval(&c);
-        mag_vec.push(sys_val.norm().mag2db());
-        phase_vec.push(sys_val.arg().rad2deg());
+        mag_phase_freq_vec.push([
+            sys_val.norm().mag2db(),
+            sys_val.arg().rad2deg(),
+            omega,
+        ]);
     }
-    (mag_vec, phase_vec)
+    mag_phase_freq_vec
 }
 
+/// Computes the Nyquist plot for a transfer function over a frequency range.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `min_freq`: The minimum frequency for the plot.
+/// - `max_freq`: The maximum frequency for the plot.
+///
+/// # Returns
+/// - A vector of complex numbers representing the Nyquist plot.
 pub fn nyquist<U: Time>(
     sys: Tf<f64, U>,
     min_freq: f64,
     max_freq: f64,
 ) -> Vec<Complex64> {
     let freqs = log_space(min_freq, max_freq, 1000, 10);
-    nyquist_freqs(sys, freqs.as_slice())
+    nyquist_freqs(sys, freqs)
 }
 
+/// Computes the Nyquist plot for a transfer function over a given set of
+/// frequencies.
+///
+/// # Arguments
+/// - `sys`: The transfer function of the system to evaluate.
+/// - `freqs`: An iterator of frequencies to evaluate the system at.
+///
+/// # Returns
+/// - A vector of complex numbers representing the Nyquist plot.
 pub fn nyquist_freqs<U: Time>(
     sys: Tf<f64, U>,
-    freqs: &[f64],
+    freqs: impl Iterator<Item = f64>,
 ) -> Vec<Complex64> {
-    let pos_freqs = freqs.iter().map(|freq| sys.eval(&c64(0., *freq)));
-    let neg_freqs = freqs.iter().rev().map(|freq| sys.eval(&c64(0., -*freq)));
+    let mut pos_vals = Vec::with_capacity(freqs.size_hint().0);
+    let mut neg_vals = Vec::with_capacity(freqs.size_hint().0);
 
-    pos_freqs.chain(neg_freqs).collect()
+    for freq in freqs {
+        pos_vals.push(sys.eval(&c64(0., freq)));
+        neg_vals.push(sys.eval(&c64(0., -freq)));
+    }
+
+    pos_vals.extend(neg_vals.iter().rev());
+    pos_vals
 }

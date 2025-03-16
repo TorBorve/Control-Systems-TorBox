@@ -1,5 +1,9 @@
 use control_systems_torbox as cst;
-use cst::{frequency_response::*, plot::*, tf::Tf, traits::*};
+
+use cst::{
+    BodePlot, BodePlotData, BodePlotOptions, Continuous, NyquistPlot,
+    NyquistPlotData, NyquistPlotOptions, Plot, RGBAColor, Tf, bode, nyquist,
+};
 
 fn main() {
     let sys: Tf<f64, Continuous> = Tf::new(&[1.0], &[0.0, 1.0]);
@@ -31,12 +35,7 @@ fn main() {
     let mut bodeplot = BodePlot::new(bodeopts);
 
     let sys: Tf<f64, Continuous> = Tf::new(&[0.0, 1.0], &[1.0, 1.0]);
-    let (mag, phase, freq) = bode(sys, 0.1, 100.);
-    let mag_phase_freq_vec: Vec<[f64; 3]> = mag
-        .iter()
-        .zip(phase.iter().zip(freq.iter()))
-        .map(|(&mag, (&phase, &freq))| [mag, phase, freq])
-        .collect();
+    let mag_phase_freq_vec = bode(sys, 0.1, 100.);
 
     bodeplot.add_system(
         BodePlotData::from(mag_phase_freq_vec.clone()).set_name("System 1"),
@@ -48,12 +47,7 @@ fn main() {
     bodeplot.add_system(data);
 
     let sys2: Tf<f64, Continuous> = Tf::new(&[1.0], &[1.0, 1.0]);
-    let (mag, phase, freq) = bode(sys2, 0.1, 100.);
-    let mag_phase_freq_vec: Vec<[f64; 3]> = mag
-        .iter()
-        .zip(phase.iter().zip(freq.iter()))
-        .map(|(&mag, (&phase, &freq))| [mag, phase, freq])
-        .collect();
+    let mag_phase_freq_vec = bode(sys2, 0.1, 100.);
 
     bodeplot.add_system(mag_phase_freq_vec.into());
 
