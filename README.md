@@ -27,11 +27,11 @@ control-systems-torbox = "0.0.1"
 The crate contains a representation for transfer functions:
 
 ```rust,no_run
-use control_systems_torbox::{tf::Tf, traits::Continous};
+use control_systems_torbox::*;
 
-let tf_lp = Tf::<f64, Continous>::new(&[10.0], &[10.0, 1.0]); // 10/(s + 10)
-let sys = 1.0/Tf::s();
-let pi_c = 1.0 + 1.0/Tf::s();
+let tf_lp = Tf::<f64, Continuous>::new(&[10.0], &[10.0, 1.0]); // 10/(s + 10)
+let sys = 1.0 / Tf::s();
+let pi_c = 1.0 + 1.0 / Tf::s();
 
 let openloop = sys * pi_c * tf_lp;
 let tracking = openloop.clone() / (1.0 + openloop);
@@ -40,20 +40,23 @@ let tracking = openloop.clone() / (1.0 + openloop);
 State-Space representations is also implemented and you can convert between transfer function and state-space
 
 ```rust,no_run
-use control_systems_torbox::{tf::Tf, traits::Continous, ss::Ss, transforms::{ss2tf, tf2ss}};
+use control_systems_torbox::*;
+use nalgebra::DMatrix;
 
 let a = DMatrix::from_row_slice(2, 2, &[0., 0., 1., 0.]);
 let b = DMatrix::from_row_slice(2, 1, &[1., 0.]);
 let c = DMatrix::from_row_slice(1, 2, &[0., 1.]);
 let d = DMatrix::from_row_slice(1, 1, &[0.]);
 
-let sys_ss = Ss::<Continous>::new(a, b, c, d).unwrap();
-let sys_tf = ss2tf(sys_ss).unwrap();
+let sys_ss = Ss::<Continuous>::new(a, b, c, d).unwrap();
+let sys_tf = ss2tf(&sys_ss).unwrap();
 ```
 
 Both Bodeplot and Nyquistplot is implemented and can be displayed natively:
 
 ```rust,no_run
+use control_systems_torbox::*;
+
 let sys = (1.0/Tf::s()) * (1.0 + 1.0/Tf::s());
 let sys_clp =  sys.clone() / (1.0 + sys.clone());
 

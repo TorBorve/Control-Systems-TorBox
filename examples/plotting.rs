@@ -1,5 +1,9 @@
 use control_systems_torbox as cst;
-use cst::{frequency_response::*, plot::*, tf::Tf, traits::*};
+
+use cst::{
+    BodePlot, BodePlotData, BodePlotOptions, Continuous, NyquistPlot,
+    NyquistPlotData, NyquistPlotOptions, Plot, RGBAColor, Tf, bode, nyquist,
+};
 
 fn main() {
     let sys: Tf<f64, Continuous> = Tf::new(&[1.0], &[0.0, 1.0]);
