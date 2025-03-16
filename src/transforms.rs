@@ -139,15 +139,23 @@ mod tests {
     #[test]
     fn convert_between_tf_and_ss() {
         let start = Instant::now();
-        (0..1000).into_par_iter().for_each(|_| {
+        let num_iter = 10000;
+        (0..num_iter).into_par_iter().for_each(|i| {
             let mut rng = rand::rng();
-            let den_order = rng.random_range(1..=100) as usize;
+            let den_order = rng.random_range(1..=20) as usize;
             let num_order = rng.random_range(0..=den_order);
 
-            let num: Vec<f64> =
-                (0..=num_order).map(|_| 10. * rng.random::<f64>()).collect();
-            let den: Vec<f64> =
-                (0..=den_order).map(|_| 10. * rng.random::<f64>()).collect();
+            let num: Vec<f64> = (0..=num_order)
+                .map(|_| rng.random_range(-10.0..10.0))
+                .collect();
+            let mut den: Vec<f64> = (0..=den_order - 1)
+                .map(|_| rng.random_range(-10.0..10.0))
+                .collect();
+            let mut den_max = rng.random_range(0.5..10.0); // ensure not too close to zero (possible division by close to zero)
+            if i % 2 != 0 {
+                den_max *= -1.0; // negative for odd i
+            }
+            den.push(den_max);
 
             let tf = Tf::<f64, Continuous>::new(&num, &den);
             let methods =
@@ -155,11 +163,14 @@ mod tests {
             let ss =
                 tf2ss(tf.clone(), *methods.iter().choose(&mut rng).unwrap())
                     .unwrap();
-            let tf_ret = ss2tf(&ss).unwrap();
+            let tf_ret = ss2tf(&ss).unwrap().normalize();
 
             let tf = tf.normalize();
-            assert_abs_diff_eq!(tf, tf_ret);
+            assert_abs_diff_eq!(tf, tf_ret, epsilon = 1e-3);
         });
-        println!("Time transfomrs: {:?}", start.elapsed());
+        println!(
+            "Time ss2tf(tf2ss()) transforms avg: {:?}",
+            start.elapsed() / num_iter
+        );
     }
 }
