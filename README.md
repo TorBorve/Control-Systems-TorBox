@@ -1,5 +1,16 @@
 # Control Systems Torbox
 
+[![Build Status]][ci_action] [![Latest Version]][crates.io] [![codecov]][codecov_num]
+
+[Latest Version]: https://img.shields.io/crates/v/control_systems_torbox.svg
+[crates.io]: https://crates.io/crates/control_systems_torbox
+
+[codecov]: https://codecov.io/gh/TorBorve/Control-Systems-TorBox/graph/badge.svg?token=VOW8UCR3FI
+[codecov_num]: https://codecov.io/gh/TorBorve/Control-Systems-TorBox
+
+[Build Status]: https://github.com/TorBorve/Control-Systems-TorBox/actions/workflows/ci.yml/badge.svg
+[ci_action]: https://github.com/TorBorve/Control-Systems-TorBox/actions/workflows/ci.yml
+
 Control Systems Torbox is a rust library for designing, analysing, simulating and implementating linear control systems.
 
 ## Usage

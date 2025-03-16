@@ -8,7 +8,7 @@ homepage = "https://github.com/TorBorve/Control-Systems-TorBox"
 repository = "https://github.com/TorBorve/Control-Systems-TorBox"
 readme = "README.md"
 keywords = ["control", "systems", "toolbox", "state-space", "transfer-function"]
-categories = ["Algorithms", "Mathematics", "Science"]
+categories = ["algorithms", "mathematics", "science", "simulation"]
 license = "MIT"
 
 
