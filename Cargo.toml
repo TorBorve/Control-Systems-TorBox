@@ -1,6 +1,6 @@
 [package]
 name = "control_systems_torbox"
-version = "0.0.1"
+version = "0.1.0"
 edition = "2024"
 authors = ["Tor Børve Rasmussen <tor.jobb.skule@gmail.com>"]
 description = "Control systems toolbox"
