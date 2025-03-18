@@ -1,4 +1,10 @@
-use std::{error::Error, marker::PhantomData};
+use std::{
+    error::Error,
+    marker::PhantomData,
+    ops::{
+        Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
+    },
+};
 
 use crate::traits::Time;
 extern crate nalgebra as na;
@@ -79,6 +85,25 @@ impl<U: Time + 'static> Ss<U> {
         &self.d
     }
 
+    pub fn noutputs(&self) -> usize {
+        assert_eq!(self.c.nrows(), self.d.nrows());
+        self.c.nrows()
+    }
+
+    pub fn ninputs(&self) -> usize {
+        assert_eq!(self.d.ncols(), self.b.ncols());
+        self.b.ncols()
+    }
+
+    pub fn order(&self) -> usize {
+        assert!(self.a.is_square());
+        self.a.nrows()
+    }
+
+    pub fn shape(&self) -> (usize, usize) {
+        (self.noutputs(), self.ninputs())
+    }
+
     /// Verifies the consistency of the matrix dimensions for state-space
     /// representation.
     ///
@@ -131,9 +156,145 @@ impl<U: Time + 'static> Ss<U> {
     }
 }
 
+impl<U: Time + 'static> Add for Ss<U> {
+    type Output = Ss<U>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        assert_eq!(self.shape(), rhs.shape());
+        let nu = self.ninputs();
+        let ny = self.noutputs();
+
+        let nx1 = self.order();
+        let nx2 = rhs.order();
+
+        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
+        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(self.a());
+        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(rhs.a());
+
+        let mut b_new = DMatrix::zeros(nx1 + nx2, nu);
+        b_new.view_mut((0, 0), (nx1, nu)).copy_from(self.b());
+        b_new.view_mut((nx1, 0), (nx2, nu)).copy_from(rhs.b());
+
+        let mut c_new = DMatrix::zeros(ny, nx1 + nx2);
+        c_new.view_mut((0, 0), (ny, nx1)).copy_from(self.c());
+
+        c_new.view_mut((0, nx1), (ny, nx2)).copy_from(rhs.c());
+        let d_new = self.d() + rhs.d();
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
+    }
+}
+
+impl<U: Time + 'static> Neg for Ss<U> {
+    type Output = Ss<U>;
+    fn neg(mut self) -> Self::Output {
+        self.c = -self.c();
+        self.d = -self.d();
+        self
+    }
+}
+
+impl<U: Time + 'static> Sub for Ss<U> {
+    type Output = Ss<U>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self + (-rhs)
+    }
+}
+
+impl<U: Time + 'static> Mul for Ss<U> {
+    type Output = Ss<U>;
+    fn mul(self, rhs: Self) -> Self::Output {
+        // series connection y <- self <- rhs <- u
+        let nx2 = self.order();
+        let nu2 = self.ninputs();
+        let ny2 = self.noutputs();
+        let nx1 = rhs.order();
+        let nu1 = rhs.ninputs();
+        let ny1 = rhs.noutputs();
+        assert_eq!(nu2, ny1);
+
+        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
+        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(rhs.a());
+        a_new
+            .view_mut((nx1, 0), (nx2, nx1))
+            .copy_from(&(self.b() * rhs.c()));
+        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(self.a());
+
+        let mut b_new = DMatrix::zeros(nx1 + nx2, nu1);
+        b_new.view_mut((0, 0), (nx1, nu1)).copy_from(rhs.b());
+        b_new
+            .view_mut((nx1, 0), (nx2, nu1))
+            .copy_from(&(self.b() * rhs.d()));
+
+        let mut c_new = DMatrix::zeros(ny2, nx1 + nx2);
+        c_new
+            .view_mut((0, 0), (ny2, nx1))
+            .copy_from(&(self.d() * rhs.c()));
+        c_new.view_mut((0, nx1), (ny2, nx2)).copy_from(self.c());
+
+        let d_new = self.d() * rhs.d();
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
+    }
+}
+
+impl<U: Time + 'static> Ss<U> {
+    pub fn inv(&self) -> Result<Self, Box<dyn Error + 'static>> {
+        let d_inv = self
+            .d()
+            .clone()
+            .try_inverse()
+            .ok_or("Matrix D is not invertible")?;
+
+        let a_new = self.a() - self.b() * &d_inv * self.c();
+        let b_new = self.b() * &d_inv;
+        let c_new = -&d_inv * self.c();
+        let d_new = d_inv;
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new)
+    }
+}
+
+impl<U: Time + 'static> Div for Ss<U> {
+    type Output = Ss<U>;
+    fn div(self, rhs: Self) -> Self::Output {
+        self * rhs.inv().unwrap()
+    }
+}
+
+macro_rules! impl_compound_assign {
+    ($struct_type:ident, [$(($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident )), *]) => {
+    $(
+        impl<U: Time + 'static> $assign_trait for $struct_type<U>
+        {
+            fn $assign_method(&mut self, rhs: Self) {
+                *self = self.clone().$method(rhs)
+            }
+        }
+    )*
+    };
+}
+impl_compound_assign!(
+    Ss,
+    [
+        (Add, add, AddAssign, add_assign),
+        (Sub, sub, SubAssign, sub_assign),
+        (Mul, mul, MulAssign, mul_assign),
+        (Div, div, DivAssign, div_assign)
+    ]
+);
+
 #[cfg(test)]
 mod tests {
-    use crate::traits::Continuous;
+    use approx::assert_abs_diff_eq;
+
+    use crate::{
+        ss2tf,
+        tests::rand_proper_tf,
+        tf2ss,
+        traits::Continuous,
+        transforms::SsRealization::{ControllableCF, ObservableCF},
+    };
 
     use super::*;
 
@@ -188,5 +349,60 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn ss_arithmetic() {
+        let mut any_div_test = false;
+        for _ in 0..100000 {
+            let mut rng = rand::rng();
+            let tf1 = rand_proper_tf(&mut rng, 5);
+            let tf2 = rand_proper_tf(&mut rng, 5);
+
+            let ss1 = tf2ss(tf1.clone(), ControllableCF).unwrap();
+            let ss2 = tf2ss(tf2.clone(), ObservableCF).unwrap();
+
+            let tf_add = tf1.clone() + tf2.clone();
+            let tf_add =
+                ss2tf(&tf2ss(tf_add, ControllableCF).unwrap()).unwrap();
+            let ss_add = ss1.clone() + ss2.clone();
+
+            assert_abs_diff_eq!(
+                tf_add,
+                ss2tf(&ss_add).unwrap(),
+                epsilon = 1e-2
+            );
+
+            let tf_sub = tf1.clone() - tf2.clone();
+            let tf_sub =
+                ss2tf(&tf2ss(tf_sub, ControllableCF).unwrap()).unwrap();
+            let ss_sub = ss1.clone() - ss2.clone();
+            let ss_sub_tf = ss2tf(&ss_sub).unwrap();
+
+            assert_abs_diff_eq!(tf_sub, ss_sub_tf, epsilon = 1e-2);
+
+            let tf_mul = tf1.clone() * tf2.clone();
+            let tf_mul = ss2tf(&tf2ss(tf_mul, ObservableCF).unwrap()).unwrap();
+            let ss_mul = ss1.clone() * ss2.clone();
+            assert_abs_diff_eq!(
+                tf_mul,
+                ss2tf(&ss_mul).unwrap(),
+                epsilon = 1e-2
+            );
+
+            if !tf2.is_strictly_proper() {
+                any_div_test = true;
+                let tf_div = tf1.clone() / tf2.clone();
+                let tf_div =
+                    ss2tf(&tf2ss(tf_div, ObservableCF).unwrap()).unwrap();
+                let ss_div = ss1.clone() / ss2.clone();
+                assert_abs_diff_eq!(
+                    tf_div,
+                    ss2tf(&ss_div).unwrap(),
+                    epsilon = 1e-2
+                );
+            }
+        }
+        assert!(any_div_test);
     }
 }
