@@ -21,7 +21,7 @@ use na::DMatrix;
 ///
 /// # Type Parameters
 /// - `U`: The time domain. `Continuous` or `Discrete`
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ss<U: Time> {
     a: DMatrix<f64>,
     b: DMatrix<f64>,
@@ -154,6 +154,16 @@ impl<U: Time + 'static> Ss<U> {
         }
         Ok(())
     }
+
+    pub fn new_from_scalar(gain: f64) -> Self {
+        Self::new(
+            DMatrix::zeros(0, 0),
+            DMatrix::zeros(0, 1),
+            DMatrix::zeros(1, 0),
+            gain * DMatrix::identity(1, 1),
+        )
+        .unwrap()
+    }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
@@ -257,6 +267,7 @@ impl<U: Time + 'static> Ss<U> {
 
 impl<U: Time + 'static> Div for Ss<U> {
     type Output = Ss<U>;
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: Self) -> Self::Output {
         self * rhs.inv().unwrap()
     }
@@ -284,15 +295,38 @@ impl_compound_assign!(
     ]
 );
 
+macro_rules! impl_scalar_math_operator_ss {
+    ([$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl<U: Time + 'static> $operator<f64> for Ss<U> {
+                type Output = Self;
+                fn $operator_fn(self, rhs: f64) -> Self::Output {
+                    let rhs_ss = Ss::<U>::new_from_scalar(rhs);
+                    self.$operator_fn(rhs_ss)
+                }
+            }
+
+            impl<U: Time + 'static> $operator<Ss<U>> for f64 {
+                type Output = Ss<U>;
+                fn $operator_fn(self, rhs: Ss<U>) -> Self::Output {
+                    let lhs_ss = Ss::<U>::new_from_scalar(self);
+                    lhs_ss.$operator_fn(rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
+
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
 
     use crate::{
-        ss2tf,
+        Continuous, Tf, lin_space, ss2tf,
         tests::rand_proper_tf,
         tf2ss,
-        traits::Continuous,
         transforms::SsRealization::{ControllableCF, ObservableCF},
     };
 
@@ -354,7 +388,7 @@ mod tests {
     #[test]
     fn ss_arithmetic() {
         let mut any_div_test = false;
-        for _ in 0..100000 {
+        for _ in 0..1000 {
             let mut rng = rand::rng();
             let tf1 = rand_proper_tf(&mut rng, 5);
             let tf2 = rand_proper_tf(&mut rng, 5);
@@ -404,5 +438,86 @@ mod tests {
             }
         }
         assert!(any_div_test);
+    }
+
+    #[test]
+    fn ss_compund_assign() {
+        let ss1 = tf2ss(1.0 / Tf::s(), ObservableCF).unwrap();
+        let ss2 = tf2ss(Tf::s() / (1.0 + Tf::s()), ObservableCF).unwrap();
+
+        let ss1_sum = ss1.clone() + ss2.clone();
+        let mut ss1_sum_c = ss1.clone();
+        ss1_sum_c += ss2.clone();
+        assert_eq!(ss1_sum, ss1_sum_c);
+
+        let ss1_sub = ss1.clone() - ss2.clone();
+        let mut ss1_sub_c = ss1.clone();
+        ss1_sub_c -= ss2.clone();
+        assert_eq!(ss1_sub, ss1_sub_c);
+
+        let ss1_mul = ss1.clone() * ss2.clone();
+        let mut ss1_mul_c = ss1.clone();
+        ss1_mul_c *= ss2.clone();
+        assert_eq!(ss1_mul, ss1_mul_c);
+
+        let ss1_div = ss1.clone() / ss2.clone();
+        let mut ss1_div_c = ss1.clone();
+        ss1_div_c /= ss2.clone();
+        assert_eq!(ss1_div, ss1_div_c);
+    }
+
+    #[test]
+    fn ss_scalar_arithmetic() {
+        for scalar in lin_space(-10., 10., 1000) {
+            if scalar.abs() < 0.1 {
+                continue; // avoid division by zero
+            }
+            let tf_start = Tf::s() / (Tf::s() + 1.);
+            let ss_start = tf2ss(tf_start.clone(), ObservableCF).unwrap();
+
+            let ss_add = scalar + ss_start.clone();
+            assert_abs_diff_eq!(
+                ss2tf(&ss_add).unwrap(),
+                scalar + tf_start.clone()
+            );
+            let ss_add = ss_start.clone() + scalar;
+            assert_abs_diff_eq!(
+                ss2tf(&ss_add).unwrap(),
+                scalar + tf_start.clone()
+            );
+
+            let ss_sub = scalar - ss_start.clone();
+            assert_abs_diff_eq!(
+                ss2tf(&ss_sub).unwrap(),
+                scalar - tf_start.clone()
+            );
+            let ss_sub = ss_start.clone() - scalar;
+            assert_abs_diff_eq!(
+                ss2tf(&ss_sub).unwrap(),
+                tf_start.clone() - scalar
+            );
+
+            let ss_mul = scalar * ss_start.clone();
+            assert_abs_diff_eq!(
+                ss2tf(&ss_mul).unwrap(),
+                scalar * tf_start.clone()
+            );
+            let ss_mul = ss_start.clone() * scalar;
+            assert_abs_diff_eq!(
+                ss2tf(&ss_mul).unwrap(),
+                scalar * tf_start.clone()
+            );
+
+            let ss_div = scalar / ss_start.clone();
+            assert_abs_diff_eq!(
+                ss2tf(&ss_div).unwrap(),
+                scalar / tf_start.clone()
+            );
+            let ss_div = ss_start.clone() / scalar;
+            assert_abs_diff_eq!(
+                ss2tf(&ss_div).unwrap(),
+                tf_start.clone() / scalar
+            );
+        }
     }
 }

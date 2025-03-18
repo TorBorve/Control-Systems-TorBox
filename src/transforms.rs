@@ -182,7 +182,7 @@ pub mod tests {
         let num: Vec<f64> = (0..=num_order)
             .map(|_| rng.random_range(-10.0..10.0))
             .collect();
-        let mut den: Vec<f64> = (0..=den_order)
+        let mut den: Vec<f64> = (0..den_order)
             .map(|_| rng.random_range(-10.0..10.0))
             .collect();
         let mut den_max = rng.random_range(0.5..10.0); // ensure not too close to zero (possible division by close to zero)
