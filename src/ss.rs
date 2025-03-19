@@ -214,6 +214,11 @@ impl<U: Time + 'static> Ss<U> {
 
     /// Computes the inverse of a state-space system, if possible.
     ///
+    /// # Warning
+    /// The need for inverse often arrised due to feedback connections. Such as
+    /// T = L/(1 + L). For such cases use the `feedback` function, which is more
+    /// numerically stable.
+    ///
     /// # Errors
     /// Returns an error if the direct transmission matrix (D) is not
     /// invertible.
@@ -230,6 +235,133 @@ impl<U: Time + 'static> Ss<U> {
         let d_new = d_inv;
 
         Ss::<U>::new(a_new, b_new, c_new, d_new)
+    }
+
+    /// Connects two systems in **series**.
+    ///
+    /// Given two systems `self` and `sys2`, the output of `self` is fed as the
+    /// input to `sys2`.
+    ///
+    /// Mathematically:
+    /// ```txt
+    /// u ---> [ self ] ---> [ sys2 ] ---> y
+    /// ```
+    ///
+    /// # Returns
+    /// A new system representing the series connection of `self` and `sys2`.
+    pub fn series(self, sys2: Self) -> Self {
+        sys2 * self
+    }
+
+    /// Connects two systems in **parallel**.
+    ///
+    /// The two systems `self` and `sys2` operate independently on the same
+    /// input `u`, and their outputs are summed together.
+    ///
+    /// Mathematically:
+    /// ```txt
+    ///       |-----> [ self ] -----|
+    /// u --->|                    (sum)---> y
+    ///       |-----> [ sys2 ] -----|
+    /// ```
+    ///
+    /// # Returns
+    /// A new system representing the parallel connection of `self` and `sys2`.
+    pub fn parallel(self, sys2: Self) -> Self {
+        self + sys2
+    }
+
+    /// **Negative** Feedback connection of `self` with `sys2`.
+    ///
+    /// The system `sys2` provides feedback to `self`, forming a closed-loop
+    /// system.
+    ///
+    /// ## Diagram:
+    /// ```txt
+    ///             --------        y
+    /// u ---->O--->| self |--------->
+    ///      -1^    --------    |
+    ///        |                |
+    ///        |    --------    |
+    ///        -----| sys2 |<----
+    ///             --------
+    /// ```
+    ///
+    /// # Assumptions
+    /// - The number of inputs of `self` must match the number of outputs of
+    ///   `sys2`.
+    /// - The number of outputs of `self` must match the number of inputs of
+    ///   `sys2`.
+    ///
+    /// # Returns
+    /// A new system representing the negative feedback connection of `self`
+    /// with `sys2`.
+    ///
+    /// # Panics
+    /// This function will panic if the input-output dimensions of `self` and
+    /// `sys2` do not match.
+    pub fn feedback(self, sys2: Self) -> Self {
+        assert_eq!(self.ninputs(), sys2.noutputs());
+        assert_eq!(self.noutputs(), sys2.ninputs());
+
+        let i_d1d2 = DMatrix::identity(self.noutputs(), self.noutputs())
+            + self.d() * sys2.d();
+
+        let i_d1d2_inv = i_d1d2.try_inverse().unwrap();
+
+        let mut c_new =
+            DMatrix::zeros(self.noutputs(), self.order() + sys2.order());
+        c_new
+            .view_mut((0, 0), (self.noutputs(), self.order()))
+            .copy_from(self.c());
+        c_new
+            .view_mut((0, self.order()), (self.noutputs(), sys2.order()))
+            .copy_from(&(-self.d() * sys2.c()));
+        c_new = i_d1d2_inv.clone() * c_new;
+
+        let d_new = i_d1d2_inv * self.d();
+
+        let mut a1_new =
+            DMatrix::zeros(self.order(), self.order() + sys2.order());
+        a1_new
+            .view_mut((0, 0), (self.order(), self.order()))
+            .copy_from(self.a());
+        a1_new
+            .view_mut((0, self.order()), (self.order(), sys2.order()))
+            .copy_from(&(-self.b() * sys2.c()));
+        a1_new = a1_new - self.b() * sys2.d() * &c_new;
+
+        let mut a2_new =
+            DMatrix::zeros(sys2.order(), self.order() + sys2.order());
+        a2_new
+            .view_mut((0, self.order()), (sys2.order(), sys2.order()))
+            .copy_from(sys2.a());
+        a2_new = a2_new + sys2.b() * &c_new;
+
+        let mut a_new = DMatrix::zeros(
+            self.order() + sys2.order(),
+            self.order() + sys2.order(),
+        );
+        a_new
+            .view_mut((0, 0), (self.order(), self.order() + sys2.order()))
+            .copy_from(&a1_new);
+        a_new
+            .view_mut(
+                (self.order(), 0),
+                (sys2.order(), self.order() + sys2.order()),
+            )
+            .copy_from(&a2_new);
+
+        let mut b_new =
+            DMatrix::zeros(self.order() + sys2.order(), self.ninputs());
+        b_new
+            .view_mut((0, 0), (self.order(), self.ninputs()))
+            .copy_from(&(self.b() - self.b() * sys2.d() * &d_new));
+        b_new
+            .view_mut((self.order(), 0), (sys2.order(), self.ninputs()))
+            .copy_from(&(sys2.b() * &d_new));
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
 }
 
@@ -341,6 +473,11 @@ impl<U: Time + 'static> Div for Ss<U> {
 
     /// Divides one state-space system by another (right multiplication by
     /// inverse).
+    ///
+    /// # Warning
+    /// The need for division often arrised due to feedback connections. Such as
+    /// T = L/(1 + L). For such cases use the `feedback` function, which is more
+    /// numerically stable.
     ///
     /// # Panics
     /// Panics if the inverse of `rhs` cannot be computed.
@@ -598,6 +735,48 @@ mod tests {
                 ss2tf(&ss_div).unwrap(),
                 tf_start.clone() / scalar
             );
+        }
+    }
+
+    #[test]
+    fn ss_connections() {
+        let ss1 = tf2ss(Tf::s() / (Tf::s() + 1.0), ObservableCF).unwrap();
+        let ss2 = tf2ss(1.0 / Tf::s(), ObservableCF).unwrap();
+
+        let ss_fb = ss1.clone().feedback(ss2.clone());
+        let tf_fb = ss2tf(&ss_fb).unwrap();
+        assert_abs_diff_eq!(tf_fb, Tf::s() / (Tf::s() + 2.0));
+
+        let ss2 = Ss::<Continuous>::new_from_scalar(1.0);
+        let ss_fb = ss1.clone().feedback(ss2.clone());
+        let tf_fb = ss2tf(&ss_fb).unwrap();
+        assert_abs_diff_eq!(tf_fb, 0.5 * Tf::s() / (Tf::s() + 0.5));
+
+        let ss_add = ss1.clone() + ss2.clone();
+        let ss_parallel = ss1.clone().parallel(ss2.clone());
+        assert_eq!(ss_add, ss_parallel);
+
+        let ss_mul = ss2.clone() * ss1.clone();
+        let ss_series = ss1.series(ss2);
+        assert_eq!(ss_mul, ss_series);
+    }
+
+    #[test]
+    fn ss_and_tf_feedback_match() {
+        for _ in 0..1000 {
+            let mut rng = rand::rng();
+
+            let tf1 = rand_proper_tf(&mut rng, 5);
+            let tf2 = rand_proper_tf(&mut rng, 5);
+
+            let ss1 = tf2ss(tf1.clone(), ObservableCF).unwrap();
+            let ss2 = tf2ss(tf2.clone(), ObservableCF).unwrap();
+
+            let ss_fb = ss1.feedback(ss2);
+            let ss_fb = ss2tf(&ss_fb).unwrap();
+            let tf_fb = tf1.feedback(tf2);
+
+            assert_abs_diff_eq!(tf_fb, ss_fb, epsilon = 1e-1);
         }
     }
 }

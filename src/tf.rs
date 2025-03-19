@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    polynom::RationalFunction,
+    polynom::{Polynomial, RationalFunction},
     traits::{Continuous, Discrete, One, Time, Zero},
 };
 
@@ -88,11 +88,19 @@ where
         Self::new_from_rf(RationalFunction::new_from_scalar(scalar))
     }
 
-    /// Returns the numerator coefficients of the transfer function.
+    /// Returns the numerator polynomial of the transfer function.
     ///
     /// # Returns
     /// A slice of the numerator coefficients.
-    pub fn numerator(&self) -> &[T] {
+    ///
+    /// # Example
+    /// ```rust
+    /// use control_systems_torbox::Tf;
+    /// let tf = (1.0 + Tf::s())/Tf::s();
+    /// let num_poly = tf.numerator();
+    /// let num_coeffs = num_poly.coeffs();
+    /// ```
+    pub fn numerator(&self) -> &Polynomial<T> {
         self.rf.numerator()
     }
 
@@ -100,7 +108,14 @@ where
     ///
     /// # Returns
     /// A slice of the denominator coefficients.
-    pub fn denominator(&self) -> &[T] {
+    /// # Example
+    /// ```rust
+    /// use control_systems_torbox::Tf;
+    /// let tf = (1.0 + Tf::s())/Tf::s();
+    /// let den_poly = tf.denominator();
+    /// let den_coeffs = den_poly.coeffs();
+    /// ```
+    pub fn denominator(&self) -> &Polynomial<T> {
         self.rf.denominator()
     }
 }
@@ -366,6 +381,84 @@ where
     pub fn powi(self, exp: i32) -> Self {
         let new_rf = self.rf.powi(exp);
         Tf::new_from_rf(new_rf)
+    }
+}
+
+impl<T, U: Time> Tf<T, U>
+where
+    T: Clone
+        + Add<T, Output = T>
+        + Zero
+        + One
+        + Default
+        + Add
+        + AddAssign
+        + Mul<Output = T>
+        + Neg<Output = T>,
+{
+    /// Connects two systems in **series**.
+    ///
+    /// Given two systems `self` and `sys2`, the output of `self` is fed as the
+    /// input to `sys2`.
+    ///
+    /// Mathematically:
+    /// ```txt
+    /// u ---> [ self ] ---> [ sys2 ] ---> y
+    /// ```
+    ///
+    /// # Returns
+    /// A new system representing the series connection of `self` and `sys2`.
+    pub fn series(self, sys2: Self) -> Self {
+        sys2 * self
+    }
+
+    /// Connects two systems in **parallel**.
+    ///
+    /// The two systems `self` and `sys2` operate independently on the same
+    /// input `u`, and their outputs are summed together.
+    ///
+    /// Mathematically:
+    /// ```txt
+    ///       |-----> [ self ] -----|
+    /// u --->|                    (sum)---> y
+    ///       |-----> [ sys2 ] -----|
+    /// ```
+    ///
+    /// # Returns
+    /// A new system representing the parallel connection of `self` and `sys2`.
+    pub fn parallel(self, sys2: Self) -> Self {
+        self + sys2
+    }
+
+    /// **Negative** Feedback connection of `self` with `sys2`.
+    ///
+    /// The system `sys2` provides feedback to `self`, forming a closed-loop
+    /// system.
+    ///
+    /// ## Diagram:
+    /// ```txt
+    ///             --------        y
+    /// u ---->O--->| self |--------->
+    ///      -1^    --------    |
+    ///        |                |
+    ///        |    --------    |
+    ///        -----| sys2 |<----
+    ///             --------
+    /// ```
+    ///
+    /// # Returns
+    /// A new system representing the negative feedback connection of `self`
+    /// with `sys2`.
+    pub fn feedback(self, sys2: Self) -> Self {
+        let n1 = self.numerator();
+        let d1 = self.denominator();
+        let n2 = sys2.numerator();
+        let d2 = sys2.denominator();
+
+        let new_num = n1.clone() * d2.clone();
+        let new_den = n1.clone() * n2.clone() + d1.clone() * d2.clone();
+        let rf = RationalFunction::new_from_poly(new_num, new_den);
+        Tf::new_from_rf(rf)
     }
 }
 

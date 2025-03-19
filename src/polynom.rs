@@ -273,6 +273,9 @@ impl_one_operator_scalar_trait!(Polynomial, u64, [(Add, add), (Mul, mul)]);
 impl_one_operator_scalar_trait!(Polynomial, u128, [(Add, add), (Mul, mul)]);
 impl_one_operator_scalar_trait!(Polynomial, usize, [(Add, add), (Mul, mul)]);
 
+
+
+
 /////////////////////////////////////////////////////////////
 /// Rational function
 ////////////////////////////////////////////////////////////
@@ -301,12 +304,12 @@ impl<T: Zero + Clone> RationalFunction<T> {
 }
 
 impl<T> RationalFunction<T> {
-    pub fn numerator(&self) -> &[T] {
-        self.num.coeffs()
+    pub fn numerator(&self) -> &Polynomial<T> {
+        &self.num
     }
 
-    pub fn denominator(&self) -> &[T] {
-        self.den.coeffs()
+    pub fn denominator(&self) -> &Polynomial<T> {
+        &self.den
     }
 }
 
