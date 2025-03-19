@@ -301,12 +301,12 @@ impl<T: Zero + Clone> RationalFunction<T> {
 }
 
 impl<T> RationalFunction<T> {
-    pub fn numerator(&self) -> &[T] {
-        self.num.coeffs()
+    pub fn numerator(&self) -> &Polynomial<T> {
+        &self.num
     }
 
-    pub fn denominator(&self) -> &[T] {
-        self.den.coeffs()
+    pub fn denominator(&self) -> &Polynomial<T> {
+        &self.den
     }
 }
 

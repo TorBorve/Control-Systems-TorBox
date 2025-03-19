@@ -109,21 +109,21 @@ fn tf2ss_observable<U: Time + 'static>(
     a.view_mut((1, 0), (nx - 1, nx - 1))
         .copy_from(&DMatrix::identity(nx - 1, nx - 1));
     for row in 0..nx {
-        a[(row, nx - 1)] = -tf.denominator()[row];
+        a[(row, nx - 1)] = -tf.denominator().coeffs()[row];
     }
 
     let mut d = DMatrix::zeros(1, 1);
     if !tf.is_strictly_proper() {
-        assert!(tf.numerator().len() > nx);
-        d[(0, 0)] = tf.numerator()[nx];
+        assert!(tf.numerator().coeffs().len() > nx);
+        d[(0, 0)] = tf.numerator().coeffs()[nx];
     }
 
-    let mut num_extended = tf.numerator().to_vec();
+    let mut num_extended = tf.numerator().coeffs().to_vec();
     num_extended.resize(nx, 0.);
 
     let mut b_values = num_extended;
-    assert!(tf.denominator().len() - 1 <= b_values.len());
-    for (i, den_i) in tf.denominator().iter().enumerate().take(nx) {
+    assert!(tf.denominator().coeffs().len() - 1 <= b_values.len());
+    for (i, den_i) in tf.denominator().coeffs().iter().enumerate().take(nx) {
         b_values[i] += -d[(0, 0)] * den_i;
     }
 
