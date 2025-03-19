@@ -85,21 +85,53 @@ impl<U: Time + 'static> Ss<U> {
         &self.d
     }
 
+    /// Returns the number of outputs in the system.
+    ///
+    /// # Returns:
+    /// - The number of rows in the output matrix (C), which equals the number
+    ///   of outputs.
+    ///
+    /// # Panics:
+    /// Panics if the number of rows in C does not match the number of rows in
+    /// D.
     pub fn noutputs(&self) -> usize {
         assert_eq!(self.c.nrows(), self.d.nrows());
         self.c.nrows()
     }
 
+    /// Returns the number of inputs in the system.
+    ///
+    /// # Returns:
+    /// - The number of columns in the input matrix (B), which equals the number
+    ///   of inputs.
+    ///
+    /// # Panics:
+    /// Panics if the number of columns in D does not match the number of
+    /// columns in B.
     pub fn ninputs(&self) -> usize {
         assert_eq!(self.d.ncols(), self.b.ncols());
         self.b.ncols()
     }
 
+    /// Returns the order of the system, which is the number of states.
+    ///
+    /// # Returns:
+    /// - The number of rows (or columns) in the state matrix (A), representing
+    ///   the system order.
+    ///
+    /// # Panics:
+    /// Panics if the state matrix (A) is not square.
     pub fn order(&self) -> usize {
         assert!(self.a.is_square());
         self.a.nrows()
     }
 
+    /// Returns the shape of the system as a tuple (number of outputs, number of
+    /// inputs).
+    ///
+    /// # Returns:
+    /// - A tuple `(ny, nu)` where `ny` is the number of outputs and `nu` is the
+    ///   number of inputs.
     pub fn shape(&self) -> (usize, usize) {
         (self.noutputs(), self.ninputs())
     }
@@ -155,6 +187,21 @@ impl<U: Time + 'static> Ss<U> {
         Ok(())
     }
 
+    /// Creates a new state-space system representing a static gain.
+    ///
+    /// This function constructs a state-space system that consists only of a
+    /// gain matrix, without any internal states.
+    ///
+    /// # Parameters:
+    /// - `gain`: The scalar gain value.
+    ///
+    /// # Returns:
+    /// - A state-space system representing `y = gain * u`, where `y` is the
+    ///   output and `u` is the input.
+    ///
+    /// # Panics:
+    /// Panics if the system creation fails, which should not happen for valid
+    /// numerical inputs.
     pub fn new_from_scalar(gain: f64) -> Self {
         Self::new(
             DMatrix::zeros(0, 0),
@@ -164,11 +211,37 @@ impl<U: Time + 'static> Ss<U> {
         )
         .unwrap()
     }
+
+    /// Computes the inverse of a state-space system, if possible.
+    ///
+    /// # Errors
+    /// Returns an error if the direct transmission matrix (D) is not
+    /// invertible.
+    pub fn inv(&self) -> Result<Self, Box<dyn Error + 'static>> {
+        let d_inv = self
+            .d()
+            .clone()
+            .try_inverse()
+            .ok_or("Matrix D is not invertible")?;
+
+        let a_new = self.a() - self.b() * &d_inv * self.c();
+        let b_new = self.b() * &d_inv;
+        let c_new = -&d_inv * self.c();
+        let d_new = d_inv;
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new)
+    }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
     type Output = Ss<U>;
 
+    /// Adds two state-space systems in parallel.
+    ///
+    /// y = y1 + y2
+    ///
+    /// # Panics
+    /// Panics if the input-output dimensions of both systems do not match.
     fn add(self, rhs: Self) -> Self::Output {
         assert_eq!(self.shape(), rhs.shape());
         let nu = self.ninputs();
@@ -197,6 +270,10 @@ impl<U: Time + 'static> Add for Ss<U> {
 
 impl<U: Time + 'static> Neg for Ss<U> {
     type Output = Ss<U>;
+
+    /// Negates the output of a state-space system.
+    ///
+    /// I.e. y_new = -y    
     fn neg(mut self) -> Self::Output {
         self.c = -self.c();
         self.d = -self.d();
@@ -206,6 +283,8 @@ impl<U: Time + 'static> Neg for Ss<U> {
 
 impl<U: Time + 'static> Sub for Ss<U> {
     type Output = Ss<U>;
+
+    /// Subtracts two state-space systems by adding one and negating the other.
     fn sub(self, rhs: Self) -> Self::Output {
         self + (-rhs)
     }
@@ -213,6 +292,15 @@ impl<U: Time + 'static> Sub for Ss<U> {
 
 impl<U: Time + 'static> Mul for Ss<U> {
     type Output = Ss<U>;
+
+    /// Multiplies two state-space systems in series (cascading connection).
+    ///
+    /// The resulting system represents `y <- self <- rhs <- u`, where `self`
+    /// follows `rhs`.
+    ///
+    /// # Panics
+    /// Panics if the output size of `rhs` does not match the input size of
+    /// `self`.
     fn mul(self, rhs: Self) -> Self::Output {
         // series connection y <- self <- rhs <- u
         let nx2 = self.order();
@@ -248,31 +336,22 @@ impl<U: Time + 'static> Mul for Ss<U> {
     }
 }
 
-impl<U: Time + 'static> Ss<U> {
-    pub fn inv(&self) -> Result<Self, Box<dyn Error + 'static>> {
-        let d_inv = self
-            .d()
-            .clone()
-            .try_inverse()
-            .ok_or("Matrix D is not invertible")?;
-
-        let a_new = self.a() - self.b() * &d_inv * self.c();
-        let b_new = self.b() * &d_inv;
-        let c_new = -&d_inv * self.c();
-        let d_new = d_inv;
-
-        Ss::<U>::new(a_new, b_new, c_new, d_new)
-    }
-}
-
 impl<U: Time + 'static> Div for Ss<U> {
     type Output = Ss<U>;
+
+    /// Divides one state-space system by another (right multiplication by
+    /// inverse).
+    ///
+    /// # Panics
+    /// Panics if the inverse of `rhs` cannot be computed.
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: Self) -> Self::Output {
         self * rhs.inv().unwrap()
     }
 }
 
+/// Implements compound assignment operators (`+=`, `-=`, `*=`, `/=`) for
+/// state-space systems.
 macro_rules! impl_compound_assign {
     ($struct_type:ident, [$(($trait:ident, $method:ident, $assign_trait:ident, $assign_method:ident )), *]) => {
     $(
@@ -295,6 +374,7 @@ impl_compound_assign!(
     ]
 );
 
+/// Implements scalar multiplication and division for state-space systems.
 macro_rules! impl_scalar_math_operator_ss {
     ([$(($operator:ident, $operator_fn:ident)), *]) => {
         $(
