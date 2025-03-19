@@ -162,7 +162,7 @@ pub enum SsRealization {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::time::Instant;
 
     use super::*;
@@ -171,6 +171,29 @@ mod tests {
     use crate::traits::Continuous;
     use approx::assert_abs_diff_eq;
     use rand::{Rng, seq::IteratorRandom};
+
+    pub fn rand_proper_tf<U: Rng>(
+        rng: &mut U,
+        max_order: usize,
+    ) -> Tf<f64, Continuous> {
+        let den_order = rng.random_range(1..=max_order) as usize;
+        let num_order = rng.random_range(0..=den_order);
+
+        let num: Vec<f64> = (0..=num_order)
+            .map(|_| rng.random_range(-10.0..10.0))
+            .collect();
+        let mut den: Vec<f64> = (0..den_order)
+            .map(|_| rng.random_range(-10.0..10.0))
+            .collect();
+        let mut den_max = rng.random_range(0.5..10.0); // ensure not too close to zero (possible division by close to zero)
+        if rng.random_range(0..=1) != 1 {
+            den_max *= -1.0; // negative for odd i
+        }
+        den.push(den_max);
+
+        Tf::<f64, Continuous>::new(&num, &den)
+    }
+
     #[test]
     fn ss2tf_test() {
         let a = DMatrix::from_row_slice(2, 2, &[0., 1., 0., 0.]);
@@ -209,24 +232,9 @@ mod tests {
     fn convert_between_tf_and_ss() {
         let start = Instant::now();
         let num_iter = 10000;
-        (0..num_iter).into_par_iter().for_each(|i| {
+        (0..num_iter).into_par_iter().for_each(|_| {
             let mut rng = rand::rng();
-            let den_order = rng.random_range(1..=20) as usize;
-            let num_order = rng.random_range(0..=den_order);
-
-            let num: Vec<f64> = (0..=num_order)
-                .map(|_| rng.random_range(-10.0..10.0))
-                .collect();
-            let mut den: Vec<f64> = (0..=den_order - 1)
-                .map(|_| rng.random_range(-10.0..10.0))
-                .collect();
-            let mut den_max = rng.random_range(0.5..10.0); // ensure not too close to zero (possible division by close to zero)
-            if i % 2 != 0 {
-                den_max *= -1.0; // negative for odd i
-            }
-            den.push(den_max);
-
-            let tf = Tf::<f64, Continuous>::new(&num, &den);
+            let tf = rand_proper_tf(&mut rng, 20);
             let methods =
                 [SsRealization::ControllableCF, SsRealization::ObservableCF];
             let ss =
