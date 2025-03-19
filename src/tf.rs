@@ -567,9 +567,16 @@ mod tests {
     }
 
     #[test]
-    fn compare() {
-        let tf = Tf::s();
-        let tf = tf.clone() / (tf.clone() + 1.);
-        assert_eq!(tf.clone(), tf.clone());
+    fn tf_interconnections() {
+        let tf1 = Tf::s() / (1.0 + Tf::s());
+        let tf2 = 1.0 / Tf::s();
+
+        let tf_add = tf1.clone() + tf2.clone();
+        let tf_parallel = tf1.clone().parallel(tf2.clone());
+        assert_eq!(tf_add, tf_parallel);
+
+        let tf_mul = tf2.clone() * tf1.clone();
+        let tf_series = tf1.clone().series(tf2.clone());
+        assert_eq!(tf_series, tf_mul);
     }
 }
