@@ -273,9 +273,6 @@ impl_one_operator_scalar_trait!(Polynomial, u64, [(Add, add), (Mul, mul)]);
 impl_one_operator_scalar_trait!(Polynomial, u128, [(Add, add), (Mul, mul)]);
 impl_one_operator_scalar_trait!(Polynomial, usize, [(Add, add), (Mul, mul)]);
 
-
-
-
 /////////////////////////////////////////////////////////////
 /// Rational function
 ////////////////////////////////////////////////////////////

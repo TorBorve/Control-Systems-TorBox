@@ -329,14 +329,14 @@ impl<U: Time + 'static> Ss<U> {
         a1_new
             .view_mut((0, self.order()), (self.order(), sys2.order()))
             .copy_from(&(-self.b() * sys2.c()));
-        a1_new = a1_new - self.b() * sys2.d() * &c_new;
+        a1_new -= self.b() * sys2.d() * &c_new;
 
         let mut a2_new =
             DMatrix::zeros(sys2.order(), self.order() + sys2.order());
         a2_new
             .view_mut((0, self.order()), (sys2.order(), sys2.order()))
             .copy_from(sys2.a());
-        a2_new = a2_new + sys2.b() * &c_new;
+        a2_new += sys2.b() * &c_new;
 
         let mut a_new = DMatrix::zeros(
             self.order() + sys2.order(),
