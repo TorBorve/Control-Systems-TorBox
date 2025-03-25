@@ -55,33 +55,38 @@ impl<U: Time + 'static> Ss<U> {
         c: DMatrix<f64>,
         d: DMatrix<f64>,
     ) -> Result<Self, Box<dyn Error + 'static>> {
-        Ss::<U>::verify_dimensions(&a, &b, &c, &d)?;
-        Ok(Self {
+        let ss = Self {
             a,
             b,
             c,
             d,
             time: PhantomData::<U>,
-        })
+        };
+        ss.is_valid()?;
+        Ok(ss)
     }
 
     /// Returns a reference to the state matrix (A).
     pub fn a(&self) -> &DMatrix<f64> {
+        self.assert_valid();
         &self.a
     }
 
     /// Returns a reference to the state matrix (B).
     pub fn b(&self) -> &DMatrix<f64> {
+        self.assert_valid();
         &self.b
     }
 
     /// Returns a reference to the state matrix (C).
     pub fn c(&self) -> &DMatrix<f64> {
+        self.assert_valid();
         &self.c
     }
 
     /// Returns a reference to the state matrix (D).
     pub fn d(&self) -> &DMatrix<f64> {
+        self.assert_valid();
         &self.d
     }
 
@@ -95,7 +100,7 @@ impl<U: Time + 'static> Ss<U> {
     /// Panics if the number of rows in C does not match the number of rows in
     /// D.
     pub fn noutputs(&self) -> usize {
-        assert_eq!(self.c.nrows(), self.d.nrows());
+        self.assert_valid();
         self.c.nrows()
     }
 
@@ -109,7 +114,7 @@ impl<U: Time + 'static> Ss<U> {
     /// Panics if the number of columns in D does not match the number of
     /// columns in B.
     pub fn ninputs(&self) -> usize {
-        assert_eq!(self.d.ncols(), self.b.ncols());
+        self.assert_valid();
         self.b.ncols()
     }
 
@@ -122,7 +127,7 @@ impl<U: Time + 'static> Ss<U> {
     /// # Panics:
     /// Panics if the state matrix (A) is not square.
     pub fn order(&self) -> usize {
-        assert!(self.a.is_square());
+        self.assert_valid();
         self.a.nrows()
     }
 
@@ -133,6 +138,7 @@ impl<U: Time + 'static> Ss<U> {
     /// - A tuple `(ny, nu)` where `ny` is the number of outputs and `nu` is the
     ///   number of inputs.
     pub fn shape(&self) -> (usize, usize) {
+        self.assert_valid();
         (self.noutputs(), self.ninputs())
     }
 
@@ -187,6 +193,21 @@ impl<U: Time + 'static> Ss<U> {
         Ok(())
     }
 
+    fn is_valid(&self) -> Result<(), String> {
+        Ss::<U>::verify_dimensions(&self.a, &self.b, &self.c, &self.d)
+            .map_err(|e| e.to_string())
+    }
+
+    fn assert_valid(&self) {
+        let is_valid = self.is_valid();
+        assert!(
+            is_valid.is_ok(),
+            "Ss is invalid: Message: {}, Ss: {:?}",
+            is_valid.unwrap_err(),
+            self
+        );
+    }
+
     /// Creates a new state-space system representing a static gain.
     ///
     /// This function constructs a state-space system that consists only of a
@@ -223,6 +244,12 @@ impl<U: Time + 'static> Ss<U> {
     /// Returns an error if the direct transmission matrix (D) is not
     /// invertible.
     pub fn inv(&self) -> Result<Self, Box<dyn Error + 'static>> {
+        assert_eq!(
+            self.ninputs(),
+            self.noutputs(),
+            "System must be square to find the inverse"
+        );
+        self.assert_valid();
         let d_inv = self
             .d()
             .clone()
@@ -250,7 +277,16 @@ impl<U: Time + 'static> Ss<U> {
     /// # Returns
     /// A new system representing the series connection of `self` and `sys2`.
     pub fn series(self, sys2: Self) -> Self {
-        sys2 * self
+        assert_eq!(
+            self.noutputs(),
+            sys2.ninputs(),
+            "Self output must be same as sys2 inputs"
+        );
+        self.assert_valid();
+        sys2.assert_valid();
+        let ret = sys2 * self;
+        ret.assert_valid();
+        ret
     }
 
     /// Connects two systems in **parallel**.
@@ -268,7 +304,16 @@ impl<U: Time + 'static> Ss<U> {
     /// # Returns
     /// A new system representing the parallel connection of `self` and `sys2`.
     pub fn parallel(self, sys2: Self) -> Self {
-        self + sys2
+        assert_eq!(
+            self.shape(),
+            sys2.shape(),
+            "System must have same shape to connnect in parallel"
+        );
+        self.assert_valid();
+        sys2.assert_valid();
+        let ret = self + sys2;
+        ret.assert_valid();
+        ret
     }
 
     /// **Negative** Feedback connection of `self` with `sys2`.
@@ -303,6 +348,8 @@ impl<U: Time + 'static> Ss<U> {
     pub fn feedback(self, sys2: Self) -> Self {
         assert_eq!(self.ninputs(), sys2.noutputs());
         assert_eq!(self.noutputs(), sys2.ninputs());
+        self.assert_valid();
+        sys2.assert_valid();
 
         let i_d1d2 = DMatrix::identity(self.noutputs(), self.noutputs())
             + self.d() * sys2.d();
@@ -376,6 +423,9 @@ impl<U: Time + 'static> Add for Ss<U> {
     /// Panics if the input-output dimensions of both systems do not match.
     fn add(self, rhs: Self) -> Self::Output {
         assert_eq!(self.shape(), rhs.shape());
+        self.assert_valid();
+        rhs.assert_valid();
+
         let nu = self.ninputs();
         let ny = self.noutputs();
 
@@ -409,6 +459,7 @@ impl<U: Time + 'static> Neg for Ss<U> {
     fn neg(mut self) -> Self::Output {
         self.c = -self.c();
         self.d = -self.d();
+        self.assert_valid();
         self
     }
 }
@@ -418,6 +469,8 @@ impl<U: Time + 'static> Sub for Ss<U> {
 
     /// Subtracts two state-space systems by adding one and negating the other.
     fn sub(self, rhs: Self) -> Self::Output {
+        self.assert_valid();
+        rhs.assert_valid();
         self + (-rhs)
     }
 }
@@ -434,7 +487,9 @@ impl<U: Time + 'static> Mul for Ss<U> {
     /// Panics if the output size of `rhs` does not match the input size of
     /// `self`.
     fn mul(self, rhs: Self) -> Self::Output {
-        // series connection y <- self <- rhs <- u
+        self.assert_valid();
+        rhs.assert_valid();
+
         let nx2 = self.order();
         let nu2 = self.ninputs();
         let ny2 = self.noutputs();
@@ -483,6 +538,8 @@ impl<U: Time + 'static> Div for Ss<U> {
     /// Panics if the inverse of `rhs` cannot be computed.
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: Self) -> Self::Output {
+        self.assert_valid();
+        rhs.assert_valid();
         self * rhs.inv().unwrap()
     }
 }
