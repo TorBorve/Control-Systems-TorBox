@@ -6,7 +6,10 @@ use std::{
     },
 };
 
-use crate::traits::Time;
+use crate::{
+    slicotrs::{h2_norm, hinf_norm},
+    traits::Time,
+};
 extern crate nalgebra as na;
 use na::DMatrix;
 
@@ -410,6 +413,14 @@ impl<U: Time + 'static> Ss<U> {
 
         Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
+
+    pub fn norm_h2(self) -> Result<f64, String> {
+        h2_norm::<U>(self.a, self.b, self.c, self.d).map_err(|e| e.to_string())
+    }
+
+    pub fn norm_hinf(self) -> Result<f64, String> {
+        hinf_norm::<U>(self.a, self.b, self.c, self.d)
+    }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
@@ -596,6 +607,7 @@ impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
+    use num_complex::c64;
 
     use crate::{
         Continuous, Tf, lin_space, ss2tf,
@@ -834,6 +846,37 @@ mod tests {
             let tf_fb = tf1.feedback(tf2);
 
             assert_abs_diff_eq!(tf_fb, ss_fb, epsilon = 1e-1);
+        }
+    }
+
+    #[test]
+    fn ss_system_norms() {
+        let sys_tf = Tf::s() / (Tf::s() + 1.0);
+        let sys = tf2ss(sys_tf, ObservableCF).unwrap();
+        assert!(sys.clone().norm_h2().is_err());
+        assert_abs_diff_eq!(sys.clone().norm_hinf().unwrap(), 1.0);
+
+        let sys = 2.0 / (Tf::s() + 1.0);
+        let sys = tf2ss(sys, ObservableCF).unwrap();
+        assert_abs_diff_eq!(
+            sys.clone().norm_h2().unwrap(),
+            2.0 / 2.0_f64.sqrt()
+        );
+        assert_abs_diff_eq!(sys.clone().norm_hinf().unwrap(), 2.0);
+
+        let damps = [0.1, 0.2, 0.3, 0.4];
+        let matlab_results = [5.0252, 2.5515, 1.7471, 1.3639];
+        for (expected_hinf_norm, damping) in
+            matlab_results.iter().zip(damps.iter())
+        {
+            let sys_tf =
+                1.0 / (Tf::s().powi(2) + 2.0 * damping * Tf::s() + 1.0);
+            let sys = tf2ss(sys_tf.clone(), ObservableCF).unwrap();
+            assert_abs_diff_eq!(
+                sys.norm_hinf().unwrap(),
+                expected_hinf_norm,
+                epsilon = 1e-2
+            );
         }
     }
 }
