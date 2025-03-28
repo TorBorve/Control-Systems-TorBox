@@ -1,4 +1,4 @@
-# Control Systems Torbox
+# Control Systems TorBox
 
 [![Build Status]][ci_action] [![Latest Version]][crates.io] [![codecov]][codecov_num]
 
@@ -19,7 +19,7 @@ To use this crate add `control-systems-torbox` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-control-systems-torbox = "0.0.1"
+control-systems-torbox = "*"
 ```
 
 ## Examples

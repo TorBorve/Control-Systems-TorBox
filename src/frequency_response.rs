@@ -56,6 +56,7 @@ pub fn log_space(
         end > 0.,
         "logarithm of negative numbers are not implemented"
     );
+    assert!(base > 1, "log_base() must be well defined");
     let start_log = start.log(base as f64);
     let end_log = end.log(base as f64);
 
