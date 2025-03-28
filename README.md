@@ -1,4 +1,4 @@
-# Control Systems Torbox
+# Control Systems TorBox
 
 [![Build Status]][ci_action] [![Latest Version]][crates.io] [![codecov]][codecov_num]
 

@@ -414,10 +414,33 @@ impl<U: Time + 'static> Ss<U> {
         Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
 
+    /// Computes the H2 norm of the system.
+    ///
+    /// The H2 norm is a measure of the energy gain from the input to the output
+    /// in the frequency domain. It is defined as:
+    ///
+    /// ```txt
+    /// ||G||_H2 = sqrt( trace( C * W_c * C^T ) )
+    /// ```
+    ///
+    /// where `W_c` is the controllability Gramian.
+    ///
+    /// # Returns
+    /// - `Ok(f64)`: The H2 norm of the system.
+    /// - `Err(String)`: An error message if the computation fails.
     pub fn norm_h2(self) -> Result<f64, String> {
         h2_norm::<U>(self.a, self.b, self.c, self.d).map_err(|e| e.to_string())
     }
 
+    /// Computes the H∞ (H-infinity) norm of the system.
+    ///
+    /// The H∞ norm represents the maximum singular value of the transfer
+    /// function across all frequencies. It quantifies the worst-case
+    /// amplification of the system from input to output.
+    ///
+    /// # Returns
+    /// - `Ok(f64)`: The H∞ norm of the system.
+    /// - `Err(String)`: An error message if the computation fails.
     pub fn norm_hinf(self) -> Result<f64, String> {
         hinf_norm::<U>(self.a, self.b, self.c, self.d)
     }
@@ -607,7 +630,6 @@ impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
-    use num_complex::c64;
 
     use crate::{
         Continuous, Tf, lin_space, ss2tf,
