@@ -12,6 +12,7 @@ use crate::{
 };
 extern crate nalgebra as na;
 use na::DMatrix;
+use num_complex::Complex64;
 
 /// A state-space representation of a system.
 ///
@@ -444,6 +445,18 @@ impl<U: Time + 'static> Ss<U> {
     pub fn norm_hinf(self) -> Result<f64, String> {
         hinf_norm::<U>(self.a, self.b, self.c, self.d)
     }
+
+    /// Computes the poles of the system
+    /// 
+    /// The poles of the system are equal to the eigen values of A.
+    /// 
+    /// # Returns
+    /// - Vector with complex eigen values
+    pub fn poles(&self) -> Vec<Complex64> {
+        let eigen_values = self.a().complex_eigenvalues();
+        assert_eq!(eigen_values.ncols(), 1);
+        eigen_values.as_slice().to_vec()
+    }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
@@ -629,7 +642,11 @@ impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 
 #[cfg(test)]
 mod tests {
+    use core::f64;
+
     use approx::assert_abs_diff_eq;
+    use num_complex::c64;
+    use rand::Rng;
 
     use crate::{
         Continuous, Tf, lin_space, ss2tf,
@@ -900,5 +917,46 @@ mod tests {
                 epsilon = 1e-2
             );
         }
+    }
+
+    #[test]
+    fn ss_poles() {
+        let mut rng = rand::rng();
+        for _ in 0..10 {
+            let mut poles = vec![];
+            let mut sys_tf = Tf::new_from_scalar(1.0);
+            for new_pole in (0..3).map(|_| {
+                c64(rng.random_range(-10.0..10.0), rng.random_range(0.0..10.0))
+            }) {
+                if new_pole.norm() < 1e-1 {
+                    continue;
+                }
+                let new_pole_conj = new_pole.conj();
+                poles.push(new_pole);
+                poles.push(new_pole_conj);
+
+                sys_tf *= 1.0
+                    / (Tf::s().powi(2) - 2.0 * new_pole.re * Tf::s()
+                        + (new_pole.im.powi(2) + new_pole.re.powi(2)));
+                let calc_poles =
+                    tf2ss(sys_tf.clone(), ObservableCF).unwrap().poles();
+
+                assert_eq!(calc_poles.len(), poles.len());
+                for pole in &poles {
+                    let min_distance = calc_poles
+                        .iter()
+                        .map(|p| (p - pole).norm())
+                        .fold(f64::INFINITY, f64::min);
+                    assert_abs_diff_eq!(min_distance, 0.0, epsilon = 1e-1);
+                }
+            }
+        }
+
+        let ss = tf2ss(1.0 / Tf::s(), ObservableCF).unwrap();
+        let poles = ss.poles();
+        assert_eq!(poles.len(), 1);
+        let pole = poles[0];
+        assert_abs_diff_eq!(pole.re, 0.0);
+        assert_abs_diff_eq!(pole.im, 0.0);
     }
 }
