@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    slicotrs::{h2_norm, hinf_norm},
+    slicotrs::{h2_norm, hinf_norm, zeros},
     traits::Time,
 };
 extern crate nalgebra as na;
@@ -447,15 +447,24 @@ impl<U: Time + 'static> Ss<U> {
     }
 
     /// Computes the poles of the system
-    /// 
+    ///
     /// The poles of the system are equal to the eigen values of A.
-    /// 
+    ///
     /// # Returns
     /// - Vector with complex eigen values
     pub fn poles(&self) -> Vec<Complex64> {
         let eigen_values = self.a().complex_eigenvalues();
         assert_eq!(eigen_values.ncols(), 1);
         eigen_values.as_slice().to_vec()
+    }
+
+    /// Computes the invariant zeros of a continuous-time state-space system.
+    ///
+    /// # Returns
+    /// A `Result` containing a vector of complex numbers representing the
+    /// system zeros, or an error message.
+    pub fn zeros(&self) -> Result<Vec<Complex64>, String> {
+        zeros(self.a(), self.b(), self.c(), self.d())
     }
 }
 
@@ -958,5 +967,56 @@ mod tests {
         let pole = poles[0];
         assert_abs_diff_eq!(pole.re, 0.0);
         assert_abs_diff_eq!(pole.im, 0.0);
+    }
+
+    #[test]
+    fn ss_zeros() {
+        let tf = (Tf::s() - 1.0) * (Tf::s() + 4.0) / (Tf::s() + 2.0).powi(2);
+        println!("tf: \n{}", tf);
+        let zeros = tf2ss(tf, ControllableCF).unwrap().zeros().unwrap();
+        println!("zeros: {:?}", zeros);
+        assert_eq!(zeros.len(), 2);
+
+        let tf = 1.0 / Tf::s();
+        let zeros = tf2ss(tf, ObservableCF).unwrap().zeros().unwrap();
+        assert_eq!(zeros.len(), 0);
+
+        for _ in 0..100 {
+            let mut rng = rand::rng();
+            for zero in (0..100).map(|_| rng.random_range(-100.0..100.0)) {
+                let tf = (Tf::s() - zero) / (Tf::s() + 1.0).powi(2);
+                let sys = tf2ss(tf, ObservableCF).unwrap();
+                let zeros = sys.zeros().unwrap();
+                assert_eq!(zeros.len(), 1);
+                assert_abs_diff_eq!(zeros[0].re, zero, epsilon = 1e-2);
+                assert_abs_diff_eq!(zeros[0].im, 0.0, epsilon = 1e-2);
+            }
+
+            let mut tf = Tf::new_from_scalar(1.0);
+            let mut zeros = vec![];
+            for new_zero in (0..3).map(|_| {
+                c64(rng.random_range(-10.0..-1.0), rng.random_range(0.0..10.0))
+            }) {
+                if new_zero.norm() < 1e-1 {
+                    continue;
+                }
+                let new_zero = c64(new_zero.re, 0.0);
+                zeros.push(new_zero);
+                zeros.push(new_zero.conj());
+                tf *= (Tf::s().powi(2) - 2.0 * new_zero.re * Tf::s()
+                    + new_zero.norm_sqr())
+                    / (Tf::s().powi(2) + 0.0);
+                let sys = tf2ss(tf.clone(), ObservableCF).unwrap();
+                let calc_zeros = sys.zeros().unwrap();
+                assert_eq!(zeros.len(), calc_zeros.len());
+                for zero in &zeros {
+                    let min_dist = calc_zeros
+                        .iter()
+                        .map(|z| (z - zero).norm())
+                        .fold(f64::INFINITY, f64::min);
+                    assert_abs_diff_eq!(min_dist, 0.0, epsilon = 1e-1);
+                }
+            }
+        }
     }
 }
