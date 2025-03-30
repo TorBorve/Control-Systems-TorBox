@@ -466,6 +466,18 @@ impl<U: Time + 'static> Ss<U> {
     pub fn zeros(&self) -> Result<Vec<Complex64>, String> {
         zeros(self.a(), self.b(), self.c(), self.d())
     }
+
+    /// Checks if the system is stable
+    ///
+    /// The system is stable if all poles are in the left half plane. I.e.
+    /// Re(pole) < 0.
+    ///
+    /// # Returns
+    /// `bool` true if the system is stable.
+    pub fn is_stable(&self) -> bool {
+        let poles = self.poles();
+        poles.iter().all(|pole| pole.re < 0.0)
+    }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
@@ -1018,5 +1030,24 @@ mod tests {
                 }
             }
         }
+    }
+    
+    #[test]
+    fn ss_is_stable() {
+        let tf = 1.0/Tf::s();
+        assert_eq!(tf2ss(tf, ObservableCF).unwrap().is_stable(), false);
+
+        let tf  = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
+        let ss = tf2ss(tf, ObservableCF).unwrap();
+        assert_eq!(ss.is_stable(), true);
+
+        let tf = 1.0 / ((Tf::s() + 1.0) * (Tf::s() - 2.0));
+        let ss = tf2ss(tf, ObservableCF).unwrap();
+        assert_eq!(ss.is_stable(), false);
+
+
+        let tf =  1.0/ (Tf::s().powi(2) + 2.0* 0.01*Tf::s() + 1.0);
+        let ss = tf2ss(tf, ObservableCF).unwrap();
+        assert_eq!(ss.is_stable(), true);
     }
 }
