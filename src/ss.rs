@@ -1031,13 +1031,13 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn ss_is_stable() {
-        let tf = 1.0/Tf::s();
+        let tf = 1.0 / Tf::s();
         assert_eq!(tf2ss(tf, ObservableCF).unwrap().is_stable(), false);
 
-        let tf  = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
+        let tf = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
         let ss = tf2ss(tf, ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), true);
 
@@ -1045,8 +1045,7 @@ mod tests {
         let ss = tf2ss(tf, ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), false);
 
-
-        let tf =  1.0/ (Tf::s().powi(2) + 2.0* 0.01*Tf::s() + 1.0);
+        let tf = 1.0 / (Tf::s().powi(2) + 2.0 * 0.01 * Tf::s() + 1.0);
         let ss = tf2ss(tf, ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), true);
     }
