@@ -505,10 +505,10 @@ pub fn zeros(
     let mut num_inv_zeros = -1 as c_int;
     let mut rank_tf = -1 as c_int;
     let mut degree_inf_div = -1 as c_int;
-    let mut num_right_kronecker_indices = -1 as c_int;
+    let mut num_right_kronecker_indecies = -1 as c_int;
     let mut num_left_kronecker_indecies = -1 as c_int;
 
-    let mut inf_elementary_divisors = vec![-1 as c_int; n];
+    let mut inf_elementrary_divisors = vec![-1 as c_int; n];
     let mut right_kronecker_indecies = vec![-1 as c_int; n.max(m) + 1];
     let mut left_kronecker_indecies = vec![-1 as c_int; n.max(p) + 1];
 
