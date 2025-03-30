@@ -3,6 +3,7 @@ extern crate netlib_src; // enable linking with blas and lapack
 use crate::{Continuous, Discrete, ss::Ss, tf::Tf, traits::Time};
 use libc::{c_char, c_double, c_int};
 use nalgebra::DMatrix;
+use num_complex::{Complex64, c64};
 use std::{error::Error, ffi::CString};
 
 unsafe extern "C" {
@@ -85,6 +86,64 @@ unsafe extern "C" {
         ldwork: *const c_int,
         cwork: *mut c_double,
         lcwork: *const c_int,
+        info: *mut c_int,
+    );
+
+    // Create regular pencil for system, which can be used to find invariant
+    // zeros
+    fn ab08nd_(
+        equil: *const c_char,
+        n: *const c_int,
+        m: *const c_int,
+        p: *const c_int,
+        a: *const c_double,
+        lda: *const c_int,
+        b: *const c_double,
+        ldb: *const c_int,
+        c: *const c_double,
+        ldc: *const c_int,
+        d: *const c_double,
+        ldd: *const c_int,
+        nu: *mut c_int,
+        rank: *mut c_int,
+        dinfz: *mut c_int,
+        nkror: *mut c_int,
+        nkrol: *mut c_int,
+        infz: *mut c_int,
+        kronr: *mut c_int,
+        kronl: *mut c_int,
+        a_f: *mut c_double,
+        ldaf: *const c_int,
+        b_f: *mut c_double,
+        ldbf: *const c_int,
+        tol: *const c_double,
+        iwork: *mut c_int,
+        dwork: *mut c_double,
+        ldwork: *const c_int,
+        info: *mut c_int,
+    );
+}
+
+// LAPACK function
+unsafe extern "C" {
+    // Compute eigenvalues and vectors for generalized eigenvalue problem
+    fn dggev_(
+        jobvl: *const c_char,
+        jobvr: *const c_char,
+        n: *const c_int,
+        a: *mut c_double,
+        lda: *const c_int,
+        b: *mut c_double,
+        ldb: *const c_int,
+        alphar: *mut c_double,
+        alphai: *mut c_double,
+        beta: *mut c_double,
+        vl: *mut c_double,
+        ldvl: *const c_int,
+        vr: *mut c_double,
+        ldvr: *const c_int,
+        work: *mut c_double,
+        lwork: *const c_int,
         info: *mut c_int,
     );
 }
@@ -413,4 +472,222 @@ pub fn hinf_norm<U: Time + 'static>(
 
     let norm = peak_gain[0];
     Ok(norm)
+}
+
+/// Computes the invariant zeros of a continuous-time state-space system.
+///
+/// # Arguments
+/// * `a` - State matrix \( A \)
+/// * `b` - Input matrix \( B \)
+/// * `c` - Output matrix \( C \)
+/// * `d` - Feedthrough matrix \( D \)
+///
+/// # Returns
+/// A `Result` containing a vector of complex numbers representing the system
+/// zeros, or an error message.
+///
+/// Uses SLICOT and LAPACK for numerical computations.
+pub fn zeros(
+    a: &DMatrix<f64>,
+    b: &DMatrix<f64>,
+    c: &DMatrix<f64>,
+    d: &DMatrix<f64>,
+) -> Result<Vec<Complex64>, String> {
+    Ss::<Continuous>::verify_dimensions(a, b, c, d)
+        .map_err(|e| e.to_string())?;
+
+    let scaling = CString::new("S").unwrap();
+
+    let n = a.nrows();
+    let m = b.ncols();
+    let p = c.nrows();
+
+    let mut num_inv_zeros = -1 as c_int;
+    let mut rank_tf = -1 as c_int;
+    let mut degree_inf_div = -1 as c_int;
+    let mut num_right_kronecker_indecies = -1 as c_int;
+    let mut num_left_kronecker_indecies = -1 as c_int;
+
+    let mut inf_elementrary_divisors = vec![-1 as c_int; n];
+    let mut right_kronecker_indecies = vec![-1 as c_int; n.max(m) + 1];
+    let mut left_kronecker_indecies = vec![-1 as c_int; n.max(p) + 1];
+
+    let mut a_f = DMatrix::zeros(n + m, n + p.min(m));
+    let mut b_f = DMatrix::zeros(n + p, n + m);
+
+    let tol = 1e-3 as c_double;
+
+    let mut iwork = vec![0 as c_int; m.max(p)];
+    let mut dwork = vec![0.0 as c_double; 1];
+    let ldwork = -1 as c_int; // query
+
+    let mut info = -1 as c_int;
+    // query workspace size
+    unsafe {
+        ab08nd_(
+            scaling.as_ptr(),
+            &(n as c_int),
+            &(m as c_int),
+            &(p as c_int),
+            a.as_ptr(),
+            &(a.nrows() as c_int),
+            b.as_ptr(),
+            &(b.nrows() as c_int),
+            c.as_ptr(),
+            &(c.nrows() as c_int),
+            d.as_ptr(),
+            &(d.nrows() as c_int),
+            &mut num_inv_zeros,
+            &mut rank_tf,
+            &mut degree_inf_div,
+            &mut num_right_kronecker_indecies,
+            &mut num_left_kronecker_indecies,
+            inf_elementrary_divisors.as_mut_ptr(),
+            right_kronecker_indecies.as_mut_ptr(),
+            left_kronecker_indecies.as_mut_ptr(),
+            a_f.as_mut_ptr(),
+            &(a_f.nrows() as c_int),
+            b_f.as_mut_ptr(),
+            &(b_f.nrows() as c_int),
+            &tol,
+            iwork.as_mut_ptr(),
+            dwork.as_mut_ptr(),
+            &(ldwork as c_int),
+            &mut info,
+        );
+    }
+
+    if info != 0 {
+        return Err(format!(
+            "SLICOT failed to find zeros of state-space system. Info = {}",
+            info
+        ));
+    }
+    let ldwork = dwork[0] as usize;
+    assert!(ldwork > 0);
+    dwork = vec![0.0 as c_double; ldwork];
+    unsafe {
+        ab08nd_(
+            scaling.as_ptr(),
+            &(n as c_int),
+            &(m as c_int),
+            &(p as c_int),
+            a.as_ptr(),
+            &(a.nrows() as c_int),
+            b.as_ptr(),
+            &(b.nrows() as c_int),
+            c.as_ptr(),
+            &(c.nrows() as c_int),
+            d.as_ptr(),
+            &(d.nrows() as c_int),
+            &mut num_inv_zeros,
+            &mut rank_tf,
+            &mut degree_inf_div,
+            &mut num_right_kronecker_indecies,
+            &mut num_left_kronecker_indecies,
+            inf_elementrary_divisors.as_mut_ptr(),
+            right_kronecker_indecies.as_mut_ptr(),
+            left_kronecker_indecies.as_mut_ptr(),
+            a_f.as_mut_ptr(),
+            &(a_f.nrows() as c_int),
+            b_f.as_mut_ptr(),
+            &(b_f.nrows() as c_int),
+            &tol,
+            iwork.as_mut_ptr(),
+            dwork.as_mut_ptr(),
+            &(ldwork as c_int),
+            &mut info,
+        );
+    }
+
+    if info != 0 {
+        return Err(format!(
+            "SLICOT failed to find zeros of state-space system. Info = {}",
+            info
+        ));
+    }
+    if num_inv_zeros == 0 {
+        return Ok(vec![]);
+    }
+
+    /////////////////////////////////
+    // LAPACK generalized eigenvalue problem
+    ////////////////////////////////////
+    let comp_left_eigen_vectors = CString::new("N").unwrap();
+    let comp_right_eigen_vectors = CString::new("N").unwrap();
+
+    let n_gen_eigen = num_inv_zeros as usize;
+    let mut alpha_re = vec![0.0 as c_double; n_gen_eigen];
+    let mut alpha_im = vec![0.0 as c_double; n_gen_eigen];
+    let mut beta = vec![0.0 as c_double; n_gen_eigen];
+
+    let mut eigen_vec_left = DMatrix::zeros(n_gen_eigen, n_gen_eigen);
+    let mut eigen_vec_right = DMatrix::zeros(n_gen_eigen, n_gen_eigen);
+    let mut work = vec![0.0 as c_double; 1];
+    let mut lwork = -1 as c_int;
+    let mut info = -1 as c_int;
+
+    // query workspace size
+    unsafe {
+        dggev_(
+            comp_left_eigen_vectors.as_ptr(),
+            comp_right_eigen_vectors.as_ptr(),
+            &(n_gen_eigen as c_int),
+            a_f.as_mut_ptr(),
+            &(a_f.nrows() as c_int),
+            b_f.as_mut_ptr(),
+            &(b_f.nrows() as c_int),
+            alpha_re.as_mut_ptr(),
+            alpha_im.as_mut_ptr(),
+            beta.as_mut_ptr(),
+            eigen_vec_left.as_mut_ptr(),
+            &(n_gen_eigen as c_int),
+            eigen_vec_right.as_mut_ptr(),
+            &(n_gen_eigen as c_int),
+            work.as_mut_ptr(),
+            &lwork,
+            &mut info,
+        );
+    }
+    if info != 0 {
+        return Err(format!("LAPACK DGGEV returned info = {}", info));
+    }
+    lwork = dwork[0] as c_int;
+    assert!(lwork > 0);
+    work = vec![0.0; lwork as usize];
+
+    // Calculate
+    unsafe {
+        dggev_(
+            comp_left_eigen_vectors.as_ptr(),
+            comp_right_eigen_vectors.as_ptr(),
+            &(n_gen_eigen as c_int),
+            a_f.as_mut_ptr(),
+            &(a_f.nrows() as c_int),
+            b_f.as_mut_ptr(),
+            &(b_f.nrows() as c_int),
+            alpha_re.as_mut_ptr(),
+            alpha_im.as_mut_ptr(),
+            beta.as_mut_ptr(),
+            eigen_vec_left.as_mut_ptr(),
+            &(n_gen_eigen as c_int),
+            eigen_vec_right.as_mut_ptr(),
+            &(n_gen_eigen as c_int),
+            work.as_mut_ptr(),
+            &lwork,
+            &mut info,
+        );
+    }
+    if info != 0 {
+        return Err(format!("LAPACK DGGEV returned info = {}", info));
+    }
+
+    let mut zeros = Vec::with_capacity(n_gen_eigen);
+    for i in 0..n_gen_eigen {
+        let den = beta[i];
+        assert!(den != 0.0);
+        let zero = c64(alpha_re[i] / den, alpha_im[i] / den);
+        zeros.push(zero);
+    }
+    Ok(zeros)
 }
