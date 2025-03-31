@@ -65,93 +65,95 @@ pub fn log_space(
     nums.map(move |x| (base as f64).powf(x))
 }
 
-/// Computes the Bode plot (magnitude and phase) for a transfer function over a
-/// frequency range.
-///
-/// # Arguments
-/// - `sys`: The transfer function of the system to evaluate.
-/// - `min_freq`: The minimum frequency for the plot.
-/// - `max_freq`: The maximum frequency for the plot.
-///
-/// # Returns
-/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
-///   evaluated frequency.
-pub fn bode<U: Time>(
-    sys: Tf<f64, U>,
-    min_freq: f64,
-    max_freq: f64,
-) -> Vec<[f64; 3]> {
-    let freqs = log_space(min_freq, max_freq, 1000, 10);
-    bode_freqs(sys, freqs)
-}
-
-/// Computes the Bode plot (magnitude and phase) for a transfer function over a
-/// given set of frequencies.
-///
-/// # Arguments
-/// - `sys`: The transfer function of the system to evaluate.
-/// - `freqs`: An iterator of frequencies to evaluate the system at.
-///
-/// # Returns
-/// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for each
-///   evaluated frequency.
-pub fn bode_freqs<U: Time>(
-    sys: Tf<f64, U>,
-    freqs: impl Iterator<Item = f64>,
-) -> Vec<[f64; 3]> {
-    let mut mag_phase_freq_vec = Vec::with_capacity(freqs.size_hint().0);
-
-    for omega in freqs {
-        let c = c64(0., omega);
-        let sys_val = sys.eval(&c);
-        mag_phase_freq_vec.push([
-            sys_val.norm().mag2db(),
-            sys_val.arg().rad2deg(),
-            omega,
-        ]);
-    }
-    mag_phase_freq_vec
-}
-
-/// Computes the Nyquist plot for a transfer function over a frequency range.
-///
-/// # Arguments
-/// - `sys`: The transfer function of the system to evaluate.
-/// - `min_freq`: The minimum frequency for the plot.
-/// - `max_freq`: The maximum frequency for the plot.
-///
-/// # Returns
-/// - A vector of complex numbers representing the Nyquist plot.
-pub fn nyquist<U: Time>(
-    sys: Tf<f64, U>,
-    min_freq: f64,
-    max_freq: f64,
-) -> Vec<Complex64> {
-    let freqs = log_space(min_freq, max_freq, 1000, 10);
-    nyquist_freqs(sys, freqs)
-}
-
-/// Computes the Nyquist plot for a transfer function over a given set of
-/// frequencies.
-///
-/// # Arguments
-/// - `sys`: The transfer function of the system to evaluate.
-/// - `freqs`: An iterator of frequencies to evaluate the system at.
-///
-/// # Returns
-/// - A vector of complex numbers representing the Nyquist plot.
-pub fn nyquist_freqs<U: Time>(
-    sys: Tf<f64, U>,
-    freqs: impl Iterator<Item = f64>,
-) -> Vec<Complex64> {
-    let mut pos_vals = Vec::with_capacity(freqs.size_hint().0);
-    let mut neg_vals = Vec::with_capacity(freqs.size_hint().0);
-
-    for freq in freqs {
-        pos_vals.push(sys.eval(&c64(0., freq)));
-        neg_vals.push(sys.eval(&c64(0., -freq)));
+impl<U: Time> Tf<f64, U> {
+    /// Computes the Bode plot (magnitude and phase) for a transfer function
+    /// over a frequency range.
+    ///
+    /// # Arguments
+    /// - `sys`: The transfer function of the system to evaluate.
+    /// - `min_freq`: The minimum frequency for the plot.
+    /// - `max_freq`: The maximum frequency for the plot.
+    ///
+    /// # Returns
+    /// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for
+    ///   each evaluated frequency.
+    pub fn bode(
+        &self,
+        min_freq: f64,
+        max_freq: f64,
+    ) -> Vec<[f64; 3]> {
+        let freqs = log_space(min_freq, max_freq, 1000, 10);
+        self.bode_freqs(freqs)
     }
 
-    pos_vals.extend(neg_vals.iter().rev());
-    pos_vals
+    /// Computes the Bode plot (magnitude and phase) for a transfer function
+    /// over a given set of frequencies.
+    ///
+    /// # Arguments
+    /// - `sys`: The transfer function of the system to evaluate.
+    /// - `freqs`: An iterator of frequencies to evaluate the system at.
+    ///
+    /// # Returns
+    /// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for
+    ///   each evaluated frequency.
+    pub fn bode_freqs(&self,
+        freqs: impl Iterator<Item = f64>,
+    ) -> Vec<[f64; 3]> {
+        let mut mag_phase_freq_vec = Vec::with_capacity(freqs.size_hint().0);
+
+        for omega in freqs {
+            let c = c64(0., omega);
+            let sys_val = self.eval(&c);
+            mag_phase_freq_vec.push([
+                sys_val.norm().mag2db(),
+                sys_val.arg().rad2deg(),
+                omega,
+            ]);
+        }
+        mag_phase_freq_vec
+    }
+
+    /// Computes the Nyquist plot for a transfer function over a frequency
+    /// range.
+    ///
+    /// # Arguments
+    /// - `sys`: The transfer function of the system to evaluate.
+    /// - `min_freq`: The minimum frequency for the plot.
+    /// - `max_freq`: The maximum frequency for the plot.
+    ///
+    /// # Returns
+    /// - A vector of complex numbers representing the Nyquist plot.
+    pub fn nyquist(
+        &self,
+        min_freq: f64,
+        max_freq: f64,
+    ) -> Vec<Complex64> {
+        let freqs = log_space(min_freq, max_freq, 1000, 10);
+        self.nyquist_freqs(freqs)
+    }
+
+    /// Computes the Nyquist plot for a transfer function over a given set of
+    /// frequencies.
+    ///
+    /// # Arguments
+    /// - `sys`: The transfer function of the system to evaluate.
+    /// - `freqs`: An iterator of frequencies to evaluate the system at.
+    ///
+    /// # Returns
+    /// - A vector of complex numbers representing the Nyquist plot.
+    pub fn nyquist_freqs(
+        &self,
+        freqs: impl Iterator<Item = f64>,
+    ) -> Vec<Complex64> {
+        let mut pos_vals = Vec::with_capacity(freqs.size_hint().0);
+        let mut neg_vals = Vec::with_capacity(freqs.size_hint().0);
+
+        for freq in freqs {
+            pos_vals.push(self.eval(&c64(0., freq)));
+            neg_vals.push(self.eval(&c64(0., -freq)));
+        }
+
+        pos_vals.extend(neg_vals.iter().rev());
+        pos_vals
+    }
 }

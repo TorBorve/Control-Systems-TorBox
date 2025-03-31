@@ -942,11 +942,7 @@ impl Plot for NyquistPlot {
 mod tests {
 
     use super::*;
-    use crate::{
-        analysis::frequency_response::{bode, nyquist},
-        systems::Tf,
-        utils::traits::Continuous,
-    };
+    use crate::{systems::Tf, utils::traits::Continuous};
     use egui_kittest::Harness;
 
     #[test]
@@ -970,7 +966,7 @@ mod tests {
         //     .zip(phase.iter().zip(freq.iter()))
         //     .map(|(&mag, (&phase, &freq))| [mag, phase, freq])
         //     .collect();
-        let mag_phase_freq_vec = bode(sys, 0.1, 100.);
+        let mag_phase_freq_vec = sys.bode(0.1, 100.);
         bodeplot.add_system(
             BodePlotData::from(mag_phase_freq_vec.clone()).set_name("Test"),
         );
@@ -989,7 +985,7 @@ mod tests {
 
         bodeplot.add_system(mag_phase_freq_vec.into());
         let sys2: Tf<f64, Continuous> = Tf::new(&[1.0], &[1.0, 1.0]);
-        let mag_phase_freq_vec = bode(sys2, 0.1, 100.);
+        let mag_phase_freq_vec = sys2.bode(0.1, 100.);
         bodeplot.add_system(mag_phase_freq_vec.into());
 
         let app = BodePlotEgui::new(bodeplot);
@@ -1010,15 +1006,15 @@ mod tests {
             NyquistPlotOptions::default().set_title("Nyquist TITLE");
         nyq_opts = nyq_opts.set_x_limits([-5., 1.]).set_y_limits([-10., 10.]);
         let mut nyq_plot = NyquistPlot::new(nyq_opts);
-        let nyq_data = nyquist(sys, 0.01, 100.);
+        let nyq_data = sys.nyquist(0.01, 100.);
         nyq_plot.add_system(nyq_data.into());
 
-        let data = NyquistPlotData::new(nyquist(sys_p1, 0.01, 100.))
+        let data = NyquistPlotData::new(sys_p1.nyquist(0.01, 100.))
             .set_name("Pade 1")
             .set_color(RGBAColor::ORANGE);
         nyq_plot.add_system(data);
-        let data = NyquistPlotData::new(nyquist(sys_p2, 0.01, 100.))
-            .set_name("Pade 2");
+        let data =
+            NyquistPlotData::new(sys_p2.nyquist(0.01, 100.)).set_name("Pade 2");
         nyq_plot.add_system(data);
 
         let mut harness =
