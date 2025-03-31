@@ -7,10 +7,8 @@ use std::{
     },
 };
 
-use crate::{
-    polynom::{Polynomial, RationalFunction},
-    traits::{Continuous, Discrete, One, Time, Zero},
-};
+use super::polynom::{Polynomial, RationalFunction};
+use crate::utils::traits::{Continuous, Discrete, One, Time, Zero};
 
 /// A transfer function representation.
 ///
@@ -467,7 +465,7 @@ where
 ///////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use crate::traits::Continuous;
+    use crate::utils::traits::Continuous;
 
     use super::*;
     use approx::assert_abs_diff_eq;

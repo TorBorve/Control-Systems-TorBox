@@ -59,20 +59,12 @@ nyq_plot.show(600, 600, "Nyquist plot demo").unwrap();
 ```
 !*/
 
-pub mod frequency_response;
-pub mod plot;
-pub mod polynom;
-pub mod slicotrs;
-pub mod ss;
-pub mod tf;
-pub mod traits;
-pub mod transforms;
 
-pub use crate::{
-    frequency_response::*,
-    plot::*,
-    ss::*,
-    tf::*,
-    traits::{Continuous, Discrete},
-    transforms::*,
-};
+
+pub mod plot;
+pub mod transformations;
+pub mod slicot_wrapper;
+pub mod utils;
+pub mod systems;
+pub mod analysis;
+

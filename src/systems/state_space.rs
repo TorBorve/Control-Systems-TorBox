@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    slicotrs::{h2_norm, hinf_norm, zeros},
-    traits::Time,
+    analysis::system_properties::{h2_norm, hinf_norm, zeros},
+    utils::traits::Time,
 };
 extern crate nalgebra as na;
 use na::DMatrix;
@@ -669,14 +669,38 @@ mod tests {
     use num_complex::c64;
     use rand::Rng;
 
+    use super::*;
     use crate::{
-        Continuous, Tf, lin_space, ss2tf,
-        tests::rand_proper_tf,
-        tf2ss,
-        transforms::SsRealization::{ControllableCF, ObservableCF},
+        analysis::frequency_response::lin_space,
+        systems::Tf,
+        transformations::{
+            SsRealization::{ControllableCF, ObservableCF},
+            ss2tf, tf2ss,
+        },
+        utils::traits::Continuous,
     };
 
-    use super::*;
+    fn rand_proper_tf<U: Rng>(
+        rng: &mut U,
+        max_order: usize,
+    ) -> Tf<f64, Continuous> {
+        let den_order = rng.random_range(1..=max_order) as usize;
+        let num_order = rng.random_range(0..=den_order);
+
+        let num: Vec<f64> = (0..=num_order)
+            .map(|_| rng.random_range(-10.0..10.0))
+            .collect();
+        let mut den: Vec<f64> = (0..den_order)
+            .map(|_| rng.random_range(-10.0..10.0))
+            .collect();
+        let mut den_max = rng.random_range(0.5..10.0); // ensure not too close to zero (possible division by close to zero)
+        if rng.random_range(0..=1) != 1 {
+            den_max *= -1.0; // negative for odd i
+        }
+        den.push(den_max);
+
+        Tf::<f64, Continuous>::new(&num, &den)
+    }
 
     #[test]
     fn new_ss() {

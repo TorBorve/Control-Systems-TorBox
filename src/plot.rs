@@ -943,9 +943,9 @@ mod tests {
 
     use super::*;
     use crate::{
-        frequency_response::{bode, nyquist},
-        tf::Tf,
-        traits::Continuous,
+        analysis::frequency_response::{bode, nyquist},
+        systems::Tf,
+        utils::traits::Continuous,
     };
     use egui_kittest::Harness;
 

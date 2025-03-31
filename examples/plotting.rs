@@ -1,8 +1,10 @@
 use control_systems_torbox as cst;
 
 use cst::{
-    BodePlot, BodePlotData, BodePlotOptions, Continuous, NyquistPlot,
-    NyquistPlotData, NyquistPlotOptions, Plot, RGBAColor, Tf, bode, nyquist,
+    plot::*,
+    systems::Tf,
+    analysis::frequency_response::{bode, nyquist},
+    utils::traits::Continuous,
 };
 
 fn main() {

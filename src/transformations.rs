@@ -1,6 +1,13 @@
-use crate::{slicotrs::ss2tf_tb04ad, ss::Ss, tf::Tf, traits::Time};
+// use crate::{slicotrs::ss2tf_tb04ad, ss::Ss, tf::Tf, traits::Time};
 use nalgebra::DMatrix;
 use std::error::Error;
+
+use crate::{
+    slicot_wrapper::tb04ad_,
+    systems::{Ss, Tf},
+    utils::traits::Time,
+};
+use std::ffi::{CString, c_double, c_int};
 
 /// Converts a state-space representation to a transfer function.
 ///
@@ -27,6 +34,8 @@ pub fn ss2tf<U: Time + 'static>(
 }
 
 /// Converts state-space matrices to a transfer function.
+///
+/// Uses SLICOT TB04AB
 ///
 /// # Arguments
 ///
@@ -57,7 +66,115 @@ pub fn ss2tf_mat<U: Time + 'static>(
     c: &DMatrix<f64>,
     d: &DMatrix<f64>,
 ) -> Result<Tf<f64, U>, Box<dyn Error + 'static>> {
-    ss2tf_tb04ad::<U>(a, b, c, d)
+    Ss::<U>::verify_dimensions(a, b, c, d)?;
+
+    let rowcol = CString::new("R")?;
+
+    let n = a.nrows();
+    let m = b.ncols();
+    let p = c.nrows();
+
+    if m != 1 || p != 1 {
+        return Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "State Space system must be SISO single-input-single-output",
+        )));
+    }
+
+    let lda = n;
+    let ldb = n;
+    let ldc = p;
+    let ldd = p;
+
+    let mut a_in = DMatrix::zeros(lda, n);
+    a_in.view_mut((0, 0), (n, n)).copy_from(a);
+    let mut b_in = DMatrix::zeros(ldb, m);
+    b_in.view_mut((0, 0), (n, m)).copy_from(b);
+    let mut c_in = DMatrix::zeros(ldc, n);
+    c_in.view_mut((0, 0), (p, n)).copy_from(c);
+    let mut d_in = DMatrix::zeros(ldd, m);
+    d_in.view_mut((0, 0), (p, m)).copy_from(d);
+
+    let mut nr: c_int = 0;
+    let mut index = vec![0 as c_int; p];
+
+    let lddcoe = p;
+    let mut dcoeff = DMatrix::<f64>::zeros(lddcoe, n + 1);
+
+    let lduco1 = p;
+    let lduco2 = m;
+    assert!(p == 1 && m == 1);
+    let mut ucoeff = DMatrix::<f64>::zeros(lduco1, n + 1);
+
+    // use default tolerances
+    let tol1 = -1. as c_double;
+    let tol2 = -1 as c_double;
+
+    use std::cmp::max;
+    let mut iwork = vec![0 as c_int; n + max(m, p)];
+
+    let mp = m;
+    let pm = p;
+    let ldwork = 10
+        * max(
+            1,
+            n * (n + 1) + max(max(n * mp + 2 * n + max(n, mp), 3 * mp), pm),
+        );
+    let mut dwork = vec![0. as c_double; ldwork];
+    let mut info = 0 as c_int;
+
+    unsafe {
+        tb04ad_(
+            rowcol.as_ptr(),
+            &(n as c_int),
+            &(m as c_int),
+            &(p as c_int),
+            a_in.as_mut_ptr(),
+            &(lda as c_int),
+            b_in.as_mut_ptr(),
+            &(ldb as c_int),
+            c_in.as_mut_ptr(),
+            &(ldc as c_int),
+            d_in.as_mut_ptr(),
+            &(ldd as c_int),
+            &mut nr,
+            index.as_mut_ptr(),
+            dcoeff.as_mut_ptr(),
+            &(lddcoe as c_int),
+            ucoeff.as_mut_ptr(),
+            &(lduco1 as c_int),
+            &(lduco2 as c_int),
+            &tol1,
+            &tol2,
+            iwork.as_mut_ptr(),
+            dwork.as_mut_ptr(),
+            &(ldwork as c_int),
+            &mut info,
+        );
+    }
+
+    if info != 0 {
+        return Err(Box::new(std::io::Error::other(format!(
+            "SLICOT tb04ad_ failed with info code {}",
+            info
+        ))));
+    }
+
+    let den_degree = index[0] as usize;
+    let den: Vec<f64> = dcoeff
+        .view((0, 0), (1, den_degree + 1))
+        .iter()
+        .rev()
+        .copied()
+        .collect();
+    let num: Vec<f64> = ucoeff
+        .view((0, 0), (1, den_degree + 1))
+        .iter()
+        .rev()
+        .copied()
+        .collect();
+    let tf = Tf::<f64, U>::new(num.as_slice(), den.as_slice());
+    Ok(tf)
 }
 
 /// Converts a transfer function to a state-space representation.
@@ -162,17 +279,17 @@ pub enum SsRealization {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::time::Instant;
 
     use super::*;
     use rayon::prelude::*;
 
-    use crate::traits::Continuous;
+    use crate::utils::traits::Continuous;
     use approx::assert_abs_diff_eq;
     use rand::{Rng, seq::IteratorRandom};
 
-    pub fn rand_proper_tf<U: Rng>(
+    fn rand_proper_tf<U: Rng>(
         rng: &mut U,
         max_order: usize,
     ) -> Tf<f64, Continuous> {

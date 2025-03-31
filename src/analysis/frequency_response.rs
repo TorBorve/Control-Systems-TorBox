@@ -1,8 +1,8 @@
 use num_complex::{Complex64, c64};
 
 use crate::{
-    tf::Tf,
-    traits::{Mag2Db, Rad2Deg, Time},
+    systems::Tf,
+    utils::traits::{Mag2Db, Rad2Deg, Time},
 };
 /// Generates a linearly spaced iterator between `start` and `end`, inclusive.
 ///
