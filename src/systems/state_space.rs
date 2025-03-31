@@ -415,69 +415,69 @@ impl<U: Time + 'static> Ss<U> {
         Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
 
-    /// Computes the H2 norm of the system.
-    ///
-    /// The H2 norm is a measure of the energy gain from the input to the output
-    /// in the frequency domain. It is defined as:
-    ///
-    /// ```txt
-    /// ||G||_H2 = sqrt( trace( C * W_c * C^T ) )
-    /// ```
-    ///
-    /// where `W_c` is the controllability Gramian.
-    ///
-    /// # Returns
-    /// - `Ok(f64)`: The H2 norm of the system.
-    /// - `Err(String)`: An error message if the computation fails.
-    pub fn norm_h2(self) -> Result<f64, String> {
-        h2_norm::<U>(self.a, self.b, self.c, self.d).map_err(|e| e.to_string())
-    }
+    // /// Computes the H2 norm of the system.
+    // ///
+    // /// The H2 norm is a measure of the energy gain from the input to the output
+    // /// in the frequency domain. It is defined as:
+    // ///
+    // /// ```txt
+    // /// ||G||_H2 = sqrt( trace( C * W_c * C^T ) )
+    // /// ```
+    // ///
+    // /// where `W_c` is the controllability Gramian.
+    // ///
+    // /// # Returns
+    // /// - `Ok(f64)`: The H2 norm of the system.
+    // /// - `Err(String)`: An error message if the computation fails.
+    // pub fn norm_h2(self) -> Result<f64, String> {
+    //     h2_norm::<U>(self.a, self.b, self.c, self.d).map_err(|e| e.to_string())
+    // }
 
-    /// Computes the H∞ (H-infinity) norm of the system.
-    ///
-    /// The H∞ norm represents the maximum singular value of the transfer
-    /// function across all frequencies. It quantifies the worst-case
-    /// amplification of the system from input to output.
-    ///
-    /// # Returns
-    /// - `Ok(f64)`: The H∞ norm of the system.
-    /// - `Err(String)`: An error message if the computation fails.
-    pub fn norm_hinf(self) -> Result<f64, String> {
-        hinf_norm::<U>(self.a, self.b, self.c, self.d)
-    }
+    // /// Computes the H∞ (H-infinity) norm of the system.
+    // ///
+    // /// The H∞ norm represents the maximum singular value of the transfer
+    // /// function across all frequencies. It quantifies the worst-case
+    // /// amplification of the system from input to output.
+    // ///
+    // /// # Returns
+    // /// - `Ok(f64)`: The H∞ norm of the system.
+    // /// - `Err(String)`: An error message if the computation fails.
+    // pub fn norm_hinf(self) -> Result<f64, String> {
+    //     hinf_norm::<U>(self.a, self.b, self.c, self.d)
+    // }
 
-    /// Computes the poles of the system
-    ///
-    /// The poles of the system are equal to the eigen values of A.
-    ///
-    /// # Returns
-    /// - Vector with complex eigen values
-    pub fn poles(&self) -> Vec<Complex64> {
-        let eigen_values = self.a().complex_eigenvalues();
-        assert_eq!(eigen_values.ncols(), 1);
-        eigen_values.as_slice().to_vec()
-    }
+    // /// Computes the poles of the system
+    // ///
+    // /// The poles of the system are equal to the eigen values of A.
+    // ///
+    // /// # Returns
+    // /// - Vector with complex eigen values
+    // pub fn poles(&self) -> Vec<Complex64> {
+    //     let eigen_values = self.a().complex_eigenvalues();
+    //     assert_eq!(eigen_values.ncols(), 1);
+    //     eigen_values.as_slice().to_vec()
+    // }
 
-    /// Computes the invariant zeros of a continuous-time state-space system.
-    ///
-    /// # Returns
-    /// A `Result` containing a vector of complex numbers representing the
-    /// system zeros, or an error message.
-    pub fn zeros(&self) -> Result<Vec<Complex64>, String> {
-        zeros(self.a(), self.b(), self.c(), self.d())
-    }
+    // /// Computes the invariant zeros of a continuous-time state-space system.
+    // ///
+    // /// # Returns
+    // /// A `Result` containing a vector of complex numbers representing the
+    // /// system zeros, or an error message.
+    // pub fn zeros(&self) -> Result<Vec<Complex64>, String> {
+    //     zeros(self.a(), self.b(), self.c(), self.d())
+    // }
 
-    /// Checks if the system is stable
-    ///
-    /// The system is stable if all poles are in the left half plane. I.e.
-    /// Re(pole) < 0.
-    ///
-    /// # Returns
-    /// `bool` true if the system is stable.
-    pub fn is_stable(&self) -> bool {
-        let poles = self.poles();
-        poles.iter().all(|pole| pole.re < 0.0)
-    }
+    // /// Checks if the system is stable
+    // ///
+    // /// The system is stable if all poles are in the left half plane. I.e.
+    // /// Re(pole) < 0.
+    // ///
+    // /// # Returns
+    // /// `bool` true if the system is stable.
+    // pub fn is_stable(&self) -> bool {
+    //     let poles = self.poles();
+    //     poles.iter().all(|pole| pole.re < 0.0)
+    // }
 }
 
 impl<U: Time + 'static> Add for Ss<U> {
@@ -666,7 +666,6 @@ mod tests {
     use core::f64;
 
     use approx::assert_abs_diff_eq;
-    use num_complex::c64;
     use rand::Rng;
 
     use super::*;
@@ -931,146 +930,5 @@ mod tests {
 
             assert_abs_diff_eq!(tf_fb, ss_fb, epsilon = 1e-1);
         }
-    }
-
-    #[test]
-    fn ss_system_norms() {
-        let sys_tf = Tf::s() / (Tf::s() + 1.0);
-        let sys = tf2ss(sys_tf, ObservableCF).unwrap();
-        assert!(sys.clone().norm_h2().is_err());
-        assert_abs_diff_eq!(sys.clone().norm_hinf().unwrap(), 1.0);
-
-        let sys = 2.0 / (Tf::s() + 1.0);
-        let sys = tf2ss(sys, ObservableCF).unwrap();
-        assert_abs_diff_eq!(
-            sys.clone().norm_h2().unwrap(),
-            2.0 / 2.0_f64.sqrt()
-        );
-        assert_abs_diff_eq!(sys.clone().norm_hinf().unwrap(), 2.0);
-
-        let damps = [0.1, 0.2, 0.3, 0.4];
-        let matlab_results = [5.0252, 2.5515, 1.7471, 1.3639];
-        for (expected_hinf_norm, damping) in
-            matlab_results.iter().zip(damps.iter())
-        {
-            let sys_tf =
-                1.0 / (Tf::s().powi(2) + 2.0 * damping * Tf::s() + 1.0);
-            let sys = tf2ss(sys_tf.clone(), ObservableCF).unwrap();
-            assert_abs_diff_eq!(
-                sys.norm_hinf().unwrap(),
-                expected_hinf_norm,
-                epsilon = 1e-2
-            );
-        }
-    }
-
-    #[test]
-    fn ss_poles() {
-        let mut rng = rand::rng();
-        for _ in 0..10 {
-            let mut poles = vec![];
-            let mut sys_tf = Tf::new_from_scalar(1.0);
-            for new_pole in (0..3).map(|_| {
-                c64(rng.random_range(-10.0..10.0), rng.random_range(0.0..10.0))
-            }) {
-                if new_pole.norm() < 1e-1 {
-                    continue;
-                }
-                let new_pole_conj = new_pole.conj();
-                poles.push(new_pole);
-                poles.push(new_pole_conj);
-
-                sys_tf *= 1.0
-                    / (Tf::s().powi(2) - 2.0 * new_pole.re * Tf::s()
-                        + (new_pole.im.powi(2) + new_pole.re.powi(2)));
-                let calc_poles =
-                    tf2ss(sys_tf.clone(), ObservableCF).unwrap().poles();
-
-                assert_eq!(calc_poles.len(), poles.len());
-                for pole in &poles {
-                    let min_distance = calc_poles
-                        .iter()
-                        .map(|p| (p - pole).norm())
-                        .fold(f64::INFINITY, f64::min);
-                    assert_abs_diff_eq!(min_distance, 0.0, epsilon = 1e-1);
-                }
-            }
-        }
-
-        let ss = tf2ss(1.0 / Tf::s(), ObservableCF).unwrap();
-        let poles = ss.poles();
-        assert_eq!(poles.len(), 1);
-        let pole = poles[0];
-        assert_abs_diff_eq!(pole.re, 0.0);
-        assert_abs_diff_eq!(pole.im, 0.0);
-    }
-
-    #[test]
-    fn ss_zeros() {
-        let tf = (Tf::s() - 1.0) * (Tf::s() + 4.0) / (Tf::s() + 2.0).powi(2);
-        println!("tf: \n{}", tf);
-        let zeros = tf2ss(tf, ControllableCF).unwrap().zeros().unwrap();
-        println!("zeros: {:?}", zeros);
-        assert_eq!(zeros.len(), 2);
-
-        let tf = 1.0 / Tf::s();
-        let zeros = tf2ss(tf, ObservableCF).unwrap().zeros().unwrap();
-        assert_eq!(zeros.len(), 0);
-
-        for _ in 0..100 {
-            let mut rng = rand::rng();
-            for zero in (0..100).map(|_| rng.random_range(-100.0..100.0)) {
-                let tf = (Tf::s() - zero) / (Tf::s() + 1.0).powi(2);
-                let sys = tf2ss(tf, ObservableCF).unwrap();
-                let zeros = sys.zeros().unwrap();
-                assert_eq!(zeros.len(), 1);
-                assert_abs_diff_eq!(zeros[0].re, zero, epsilon = 1e-2);
-                assert_abs_diff_eq!(zeros[0].im, 0.0, epsilon = 1e-2);
-            }
-
-            let mut tf = Tf::new_from_scalar(1.0);
-            let mut zeros = vec![];
-            for new_zero in (0..3).map(|_| {
-                c64(rng.random_range(-10.0..-1.0), rng.random_range(0.0..10.0))
-            }) {
-                if new_zero.norm() < 1e-1 {
-                    continue;
-                }
-                let new_zero = c64(new_zero.re, 0.0);
-                zeros.push(new_zero);
-                zeros.push(new_zero.conj());
-                tf *= (Tf::s().powi(2) - 2.0 * new_zero.re * Tf::s()
-                    + new_zero.norm_sqr())
-                    / (Tf::s().powi(2) + 0.0);
-                let sys = tf2ss(tf.clone(), ObservableCF).unwrap();
-                let calc_zeros = sys.zeros().unwrap();
-                assert_eq!(zeros.len(), calc_zeros.len());
-                for zero in &zeros {
-                    let min_dist = calc_zeros
-                        .iter()
-                        .map(|z| (z - zero).norm())
-                        .fold(f64::INFINITY, f64::min);
-                    assert_abs_diff_eq!(min_dist, 0.0, epsilon = 1e-1);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn ss_is_stable() {
-        let tf = 1.0 / Tf::s();
-        assert_eq!(tf2ss(tf, ObservableCF).unwrap().is_stable(), false);
-
-        let tf = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
-        let ss = tf2ss(tf, ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), true);
-
-        let tf = 1.0 / ((Tf::s() + 1.0) * (Tf::s() - 2.0));
-        let ss = tf2ss(tf, ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), false);
-
-        let tf = 1.0 / (Tf::s().powi(2) + 2.0 * 0.01 * Tf::s() + 1.0);
-        let ss = tf2ss(tf, ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), true);
     }
 }
