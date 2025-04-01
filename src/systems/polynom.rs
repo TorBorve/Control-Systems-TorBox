@@ -1,4 +1,4 @@
-use crate::traits::{One, Zero};
+use crate::utils::traits::{One, Zero};
 use core::fmt;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,

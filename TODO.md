@@ -3,8 +3,8 @@
 - [X] Transfer functions
 - [X] State Space
 - [ ] General Linear Time Invariant systems. (delays in feedback)
-- [ ] Connecting and feedback of LTI systems.
-- [ ] poles and zeros of LTI systems
+- [X] Connecting and feedback of LTI systems.
+- [X] poles and zeros of LTI systems
 - [X] Bodeplot
 - [X] Nyquistplot
 - [ ] pole zero plot
@@ -23,6 +23,7 @@
 - [x] Home button in nyquist and bodeplot
 - [x] Tf^(i) implement
 - [x] Can SLICOT be used to implement some routines and transforms?
+- [ ] Make better system/code for calling SLICOT and so on.
 
 
 ## Resources
