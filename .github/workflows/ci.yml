@@ -13,7 +13,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
       - name: Setup | Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -36,6 +37,9 @@ jobs:
         with:
           submodules: true       
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -53,6 +57,9 @@ jobs:
         with:
           submodules: true
       
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+      
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -69,6 +76,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
+      
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
         
       - run: |
           echo "CC=$(brew --prefix gcc@13)/bin/gcc-13" >> "${GITHUB_ENV}"

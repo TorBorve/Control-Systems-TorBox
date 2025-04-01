@@ -12,6 +12,9 @@ jobs:
         with:
           submodules: true
 
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+
       - name: Setup | Toolchain
         uses: dtolnay/rust-toolchain@nightly
 
