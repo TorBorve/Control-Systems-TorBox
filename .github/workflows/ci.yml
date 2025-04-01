@@ -60,6 +60,8 @@ jobs:
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v2
       
+      - name: Use cmake
+        run: cmake --version
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
