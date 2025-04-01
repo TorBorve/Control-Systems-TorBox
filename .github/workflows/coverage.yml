@@ -14,6 +14,8 @@ jobs:
 
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.28.x'
 
       - name: Setup | Toolchain
         uses: dtolnay/rust-toolchain@nightly
