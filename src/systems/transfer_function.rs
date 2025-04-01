@@ -135,7 +135,7 @@ where
     ///
     /// # Returns
     /// A new normalized transfer function.
-    pub fn normalize(self) -> Self {
+    pub fn normalize(&self) -> Self {
         Tf::new_from_rf(self.rf.normalize())
     }
 }

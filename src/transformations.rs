@@ -1,4 +1,3 @@
-// use crate::{slicotrs::ss2tf_tb04ad, ss::Ss, tf::Tf, traits::Time};
 use nalgebra::DMatrix;
 use std::error::Error;
 
@@ -8,30 +7,6 @@ use crate::{
     utils::traits::Time,
 };
 use std::ffi::{CString, c_double, c_int};
-
-/// Converts a state-space representation to a transfer function.
-///
-/// # Arguments
-///
-/// * `ss` - A reference to a state-space system.
-///
-/// # Returns
-///
-/// Returns a `Result` containing a transfer function (`Tf<f64, U>`) or an error
-/// if the conversion fails.
-///
-/// # Example
-///
-/// ```rust
-/// use control_systems_torbox::*;
-/// let ss = tf2ss(1.0/Tf::s(), SsRealization::ControllableCF).unwrap();
-/// let tf = ss2tf::<Continuous>(&ss);
-/// ```
-pub fn ss2tf<U: Time + 'static>(
-    ss: &Ss<U>,
-) -> Result<Tf<f64, U>, Box<dyn Error + 'static>> {
-    ss2tf_mat(ss.a(), ss.b(), ss.c(), ss.d())
-}
 
 /// Converts state-space matrices to a transfer function.
 ///
@@ -48,19 +23,7 @@ pub fn ss2tf<U: Time + 'static>(
 ///
 /// Returns a `Result` containing a transfer function (`Tf<f64, U>`) or an error
 /// if the conversion fails.
-///
-/// # Example
-///
-/// ```rust
-/// use control_systems_torbox::*;
-/// use nalgebra::DMatrix;
-/// let a = DMatrix::identity(1, 1);
-/// let b = DMatrix::identity(1, 1);
-/// let c = DMatrix::identity(1, 1);
-/// let d = DMatrix::zeros(1, 1);
-/// let tf = ss2tf_mat::<Discrete>(&a, &b, &c, &d);
-/// ```
-pub fn ss2tf_mat<U: Time + 'static>(
+fn ss2tf_mat<U: Time + 'static>(
     a: &DMatrix<f64>,
     b: &DMatrix<f64>,
     c: &DMatrix<f64>,
@@ -177,92 +140,130 @@ pub fn ss2tf_mat<U: Time + 'static>(
     Ok(tf)
 }
 
-/// Converts a transfer function to a state-space representation.
-///
-/// # Arguments
-///
-/// * `tf` - A transfer function (`Tf<f64, U>`).
-/// * `method` - The realization method used for the conversion such as
-///   Controllable Canonical Form or Observable Canonical Form.
-///
-/// # Returns
-///
-/// Returns a `Result` containing a state-space system (`Ss<U>`) or an error if
-/// the conversion fails.
-///
-/// # Example
-///
-/// ```rust
-/// use control_systems_torbox::*;
-/// let tf = 1.0/Tf::s();
-/// let ss = tf2ss(tf, SsRealization::ControllableCF);
-/// ```
-pub fn tf2ss<U: Time + 'static>(
-    tf: Tf<f64, U>,
-    method: SsRealization,
-) -> Result<Ss<U>, Box<dyn Error + 'static>> {
-    match method {
-        SsRealization::ControllableCF => tf2ss_controllable(tf),
-        SsRealization::ObservableCF => tf2ss_observable(tf),
+impl<U: Time + 'static> Tf<f64, U> {
+    fn to_ss_observable(&self) -> Result<Ss<U>, Box<dyn Error + 'static>> {
+        if !self.is_proper() {
+            return Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Transfer function must be proper",
+            )));
+        }
+
+        let tf = self.normalize();
+
+        let (_, den_deg) = tf.degree_num_den();
+        let nx = den_deg;
+
+        let mut a = DMatrix::zeros(nx, nx);
+        a.view_mut((1, 0), (nx - 1, nx - 1))
+            .copy_from(&DMatrix::identity(nx - 1, nx - 1));
+        for row in 0..nx {
+            a[(row, nx - 1)] = -tf.denominator().coeffs()[row];
+        }
+
+        let mut d = DMatrix::zeros(1, 1);
+        if !tf.is_strictly_proper() {
+            assert!(tf.numerator().coeffs().len() > nx);
+            d[(0, 0)] = tf.numerator().coeffs()[nx];
+        }
+
+        let mut num_extended = tf.numerator().coeffs().to_vec();
+        num_extended.resize(nx, 0.);
+
+        let mut b_values = num_extended;
+        assert!(tf.denominator().coeffs().len() - 1 <= b_values.len());
+        for (i, den_i) in tf.denominator().coeffs().iter().enumerate().take(nx)
+        {
+            b_values[i] += -d[(0, 0)] * den_i;
+        }
+
+        let b = DMatrix::from_column_slice(nx, 1, &b_values);
+
+        let mut c = DMatrix::zeros(1, nx);
+        c[(0, nx - 1)] = 1.;
+
+        Ss::<U>::new(a, b, c, d)
+    }
+
+    fn to_ss_controllable(&self) -> Result<Ss<U>, Box<dyn Error + 'static>> {
+        let ss = self.to_ss_observable()?;
+
+        let a = ss.a().transpose();
+        let b = ss.c().transpose();
+        let c = ss.b().transpose();
+        let d = ss.d().transpose();
+
+        Ss::<U>::new(a, b, c, d)
+    }
+
+    /// Converts a transfer function to a state-space representation. Using
+    /// Observable Canonical Form.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a state-space system (`Ss<U>`) or an error
+    /// if the conversion fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use control_systems_torbox::*;
+    /// let tf = 1.0/Tf::s();
+    /// let ss = tf.to_ss();
+    /// ```
+    pub fn to_ss(&self) -> Result<Ss<U>, String> {
+        self.to_ss_method(SsRealization::ObservableCF)
+    }
+    /// Converts a transfer function to a state-space representation.
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - The realization method used for the conversion such as
+    ///   Controllable Canonical Form or Observable Canonical Form.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a state-space system (`Ss<U>`) or an error
+    /// if the conversion fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use control_systems_torbox::*;
+    /// let tf = 1.0/Tf::s();
+    /// let ss = tf.to_ss_method(SsRealization::ControllableCF);
+    /// ```
+    pub fn to_ss_method(&self, method: SsRealization) -> Result<Ss<U>, String> {
+        match method {
+            SsRealization::ObservableCF => {
+                self.to_ss_observable().map_err(|e| e.to_string())
+            }
+            SsRealization::ControllableCF => {
+                self.to_ss_controllable().map_err(|e| e.to_string())
+            }
+        }
     }
 }
 
-fn tf2ss_observable<U: Time + 'static>(
-    tf: Tf<f64, U>,
-) -> Result<Ss<U>, Box<dyn Error + 'static>> {
-    if !tf.is_proper() {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "Transfer function must be proper",
-        )));
+impl<U: Time + 'static> Ss<U> {
+    /// Converts a state-space representation to a transfer function.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a transfer function (`Tf<f64, U>`) or an
+    /// error if the conversion fails.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use control_systems_torbox::*;
+    /// let ss = (1.0/Tf::s()).to_ss().unwrap();
+    /// let tf = ss.to_tf().unwrap();
+    /// ```
+    pub fn to_tf(&self) -> Result<Tf<f64, U>, String> {
+        ss2tf_mat(self.a(), self.b(), self.c(), self.d())
+            .map_err(|e| e.to_string())
     }
-
-    let tf = tf.normalize();
-
-    let (_, den_deg) = tf.degree_num_den();
-    let nx = den_deg;
-
-    let mut a = DMatrix::zeros(nx, nx);
-    a.view_mut((1, 0), (nx - 1, nx - 1))
-        .copy_from(&DMatrix::identity(nx - 1, nx - 1));
-    for row in 0..nx {
-        a[(row, nx - 1)] = -tf.denominator().coeffs()[row];
-    }
-
-    let mut d = DMatrix::zeros(1, 1);
-    if !tf.is_strictly_proper() {
-        assert!(tf.numerator().coeffs().len() > nx);
-        d[(0, 0)] = tf.numerator().coeffs()[nx];
-    }
-
-    let mut num_extended = tf.numerator().coeffs().to_vec();
-    num_extended.resize(nx, 0.);
-
-    let mut b_values = num_extended;
-    assert!(tf.denominator().coeffs().len() - 1 <= b_values.len());
-    for (i, den_i) in tf.denominator().coeffs().iter().enumerate().take(nx) {
-        b_values[i] += -d[(0, 0)] * den_i;
-    }
-
-    let b = DMatrix::from_column_slice(nx, 1, &b_values);
-
-    let mut c = DMatrix::zeros(1, nx);
-    c[(0, nx - 1)] = 1.;
-
-    Ss::<U>::new(a, b, c, d)
-}
-
-fn tf2ss_controllable<U: Time + 'static>(
-    tf: Tf<f64, U>,
-) -> Result<Ss<U>, Box<dyn Error + 'static>> {
-    let ss = tf2ss_observable(tf)?;
-
-    let a = ss.a().transpose();
-    let b = ss.c().transpose();
-    let c = ss.b().transpose();
-    let d = ss.d().transpose();
-
-    Ss::<U>::new(a, b, c, d)
 }
 
 /// Enumeration for the different realizations of state-space systems.
@@ -319,7 +320,7 @@ mod tests {
         let d = DMatrix::zeros(1, 1);
 
         let ss = Ss::<Continuous>::new(a, b, c, d).unwrap();
-        let tf = ss2tf(&ss).unwrap();
+        let tf = ss.to_tf().unwrap();
 
         let tf_ans = 1. / Tf::s().powi(2);
         println!("ss2Tf: \n{}", tf);
@@ -327,12 +328,11 @@ mod tests {
     }
 
     #[test]
-
     fn tf2ss_test() {
         let tf = 1. / Tf::s().powi(2);
 
-        let ss = tf2ss(tf.clone(), SsRealization::ObservableCF).unwrap();
-        let tf_ret = ss2tf(&ss).unwrap();
+        let ss = tf.to_ss().unwrap();
+        let tf_ret = ss.to_tf().unwrap();
         let a_ans = DMatrix::from_row_slice(2, 2, &[0., 0., 1., 0.]);
         let b_ans = DMatrix::from_row_slice(2, 1, &[1., 0.]);
         let c_ans = DMatrix::from_row_slice(1, 2, &[0., 1.]);
@@ -354,10 +354,10 @@ mod tests {
             let tf = rand_proper_tf(&mut rng, 20);
             let methods =
                 [SsRealization::ControllableCF, SsRealization::ObservableCF];
-            let ss =
-                tf2ss(tf.clone(), *methods.iter().choose(&mut rng).unwrap())
-                    .unwrap();
-            let tf_ret = ss2tf(&ss).unwrap().normalize();
+            let ss = tf
+                .to_ss_method(*methods.iter().choose(&mut rng).unwrap())
+                .unwrap();
+            let tf_ret = ss.to_tf().unwrap().normalize();
 
             let tf = tf.normalize();
             assert_abs_diff_eq!(tf, tf_ret, epsilon = 1e-3);

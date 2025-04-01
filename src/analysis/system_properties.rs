@@ -25,7 +25,7 @@ use std::{error::Error, ffi::CString};
 /// # Returns
 /// - `Ok(f64)`: The H2 norm of the system.
 /// - `Err(dyn Error)`: An error message if the computation fails.
-pub fn h2_norm<U: Time + 'static>(
+fn h2_norm<U: Time + 'static>(
     mut a: DMatrix<f64>,
     mut b: DMatrix<f64>,
     mut c: DMatrix<f64>,
@@ -114,7 +114,7 @@ pub fn h2_norm<U: Time + 'static>(
 /// # Returns
 /// - `Ok(f64)`: The H∞ norm of the system.
 /// - `Err(String)`: An error message if the computation fails.
-pub fn hinf_norm<U: Time + 'static>(
+fn hinf_norm<U: Time + 'static>(
     mut a: DMatrix<f64>,
     mut b: DMatrix<f64>,
     mut c: DMatrix<f64>,
@@ -427,7 +427,7 @@ pub fn zeros(
 }
 
 ////////////////////////////////////////////////////////////
-/// State-Space methods
+// State-Space methods
 ////////////////////////////////////////////////////////////
 
 impl<U: Time + 'static> Ss<U> {
@@ -511,10 +511,7 @@ impl<U: Time + 'static> Ss<U> {
 mod tests {
     use crate::{
         systems::Tf,
-        transformations::{
-            SsRealization::{ControllableCF, ObservableCF},
-            tf2ss,
-        },
+        transformations::SsRealization::{ControllableCF, ObservableCF},
     };
 
     use approx::assert_abs_diff_eq;
@@ -523,12 +520,12 @@ mod tests {
     #[test]
     fn ss_system_norms() {
         let sys_tf = Tf::s() / (Tf::s() + 1.0);
-        let sys = tf2ss(sys_tf, ObservableCF).unwrap();
+        let sys = sys_tf.to_ss_method(ObservableCF).unwrap();
         assert!(sys.clone().norm_h2().is_err());
         assert_abs_diff_eq!(sys.clone().norm_hinf().unwrap(), 1.0);
 
         let sys = 2.0 / (Tf::s() + 1.0);
-        let sys = tf2ss(sys, ObservableCF).unwrap();
+        let sys = sys.to_ss_method(ObservableCF).unwrap();
         assert_abs_diff_eq!(
             sys.clone().norm_h2().unwrap(),
             2.0 / 2.0_f64.sqrt()
@@ -542,7 +539,7 @@ mod tests {
         {
             let sys_tf =
                 1.0 / (Tf::s().powi(2) + 2.0 * damping * Tf::s() + 1.0);
-            let sys = tf2ss(sys_tf.clone(), ObservableCF).unwrap();
+            let sys = sys_tf.to_ss_method(ObservableCF).unwrap();
             assert_abs_diff_eq!(
                 sys.norm_hinf().unwrap(),
                 expected_hinf_norm,
@@ -571,7 +568,7 @@ mod tests {
                     / (Tf::s().powi(2) - 2.0 * new_pole.re * Tf::s()
                         + (new_pole.im.powi(2) + new_pole.re.powi(2)));
                 let calc_poles =
-                    tf2ss(sys_tf.clone(), ObservableCF).unwrap().poles();
+                    sys_tf.to_ss_method(ObservableCF).unwrap().poles();
 
                 assert_eq!(calc_poles.len(), poles.len());
                 for pole in &poles {
@@ -584,7 +581,7 @@ mod tests {
             }
         }
 
-        let ss = tf2ss(1.0 / Tf::s(), ObservableCF).unwrap();
+        let ss = (1.0 / Tf::s()).to_ss_method(ObservableCF).unwrap();
         let poles = ss.poles();
         assert_eq!(poles.len(), 1);
         let pole = poles[0];
@@ -596,19 +593,19 @@ mod tests {
     fn ss_zeros() {
         let tf = (Tf::s() - 1.0) * (Tf::s() + 4.0) / (Tf::s() + 2.0).powi(2);
         println!("tf: \n{}", tf);
-        let zeros = tf2ss(tf, ControllableCF).unwrap().zeros().unwrap();
+        let zeros = tf.to_ss_method(ControllableCF).unwrap().zeros().unwrap();
         println!("zeros: {:?}", zeros);
         assert_eq!(zeros.len(), 2);
 
         let tf = 1.0 / Tf::s();
-        let zeros = tf2ss(tf, ObservableCF).unwrap().zeros().unwrap();
+        let zeros = tf.to_ss_method(ObservableCF).unwrap().zeros().unwrap();
         assert_eq!(zeros.len(), 0);
 
         for _ in 0..100 {
             let mut rng = rand::rng();
             for zero in (0..100).map(|_| rng.random_range(-100.0..100.0)) {
                 let tf = (Tf::s() - zero) / (Tf::s() + 1.0).powi(2);
-                let sys = tf2ss(tf, ObservableCF).unwrap();
+                let sys = tf.to_ss_method(ObservableCF).unwrap();
                 let zeros = sys.zeros().unwrap();
                 assert_eq!(zeros.len(), 1);
                 assert_abs_diff_eq!(zeros[0].re, zero, epsilon = 1e-2);
@@ -629,7 +626,7 @@ mod tests {
                 tf *= (Tf::s().powi(2) - 2.0 * new_zero.re * Tf::s()
                     + new_zero.norm_sqr())
                     / (Tf::s().powi(2) + 0.0);
-                let sys = tf2ss(tf.clone(), ObservableCF).unwrap();
+                let sys = tf.to_ss_method(ObservableCF).unwrap();
                 let calc_zeros = sys.zeros().unwrap();
                 assert_eq!(zeros.len(), calc_zeros.len());
                 for zero in &zeros {
@@ -646,18 +643,18 @@ mod tests {
     #[test]
     fn ss_is_stable() {
         let tf = 1.0 / Tf::s();
-        assert_eq!(tf2ss(tf, ObservableCF).unwrap().is_stable(), false);
+        assert_eq!(tf.to_ss_method(ObservableCF).unwrap().is_stable(), false);
 
         let tf = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
-        let ss = tf2ss(tf, ObservableCF).unwrap();
+        let ss = tf.to_ss_method(ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), true);
 
         let tf = 1.0 / ((Tf::s() + 1.0) * (Tf::s() - 2.0));
-        let ss = tf2ss(tf, ObservableCF).unwrap();
+        let ss = tf.to_ss_method(ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), false);
 
         let tf = 1.0 / (Tf::s().powi(2) + 2.0 * 0.01 * Tf::s() + 1.0);
-        let ss = tf2ss(tf, ObservableCF).unwrap();
+        let ss = tf.to_ss_method(ObservableCF).unwrap();
         assert_eq!(ss.is_stable(), true);
     }
 }

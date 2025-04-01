@@ -77,11 +77,7 @@ impl<U: Time> Tf<f64, U> {
     /// # Returns
     /// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for
     ///   each evaluated frequency.
-    pub fn bode(
-        &self,
-        min_freq: f64,
-        max_freq: f64,
-    ) -> Vec<[f64; 3]> {
+    pub fn bode(&self, min_freq: f64, max_freq: f64) -> Vec<[f64; 3]> {
         let freqs = log_space(min_freq, max_freq, 1000, 10);
         self.bode_freqs(freqs)
     }
@@ -96,7 +92,8 @@ impl<U: Time> Tf<f64, U> {
     /// # Returns
     /// - A vector of `[magnitude (dB), phase (degrees), frequency]` tuples for
     ///   each evaluated frequency.
-    pub fn bode_freqs(&self,
+    pub fn bode_freqs(
+        &self,
         freqs: impl Iterator<Item = f64>,
     ) -> Vec<[f64; 3]> {
         let mut mag_phase_freq_vec = Vec::with_capacity(freqs.size_hint().0);
@@ -123,11 +120,7 @@ impl<U: Time> Tf<f64, U> {
     ///
     /// # Returns
     /// - A vector of complex numbers representing the Nyquist plot.
-    pub fn nyquist(
-        &self,
-        min_freq: f64,
-        max_freq: f64,
-    ) -> Vec<Complex64> {
+    pub fn nyquist(&self, min_freq: f64, max_freq: f64) -> Vec<Complex64> {
         let freqs = log_space(min_freq, max_freq, 1000, 10);
         self.nyquist_freqs(freqs)
     }
