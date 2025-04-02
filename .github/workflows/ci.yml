@@ -13,10 +13,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28.x'
+    
       - name: Setup | Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -38,12 +35,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: true       
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28.x'
-
+      
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -61,13 +53,6 @@ jobs:
         with:
           submodules: true
       
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28.x'
-      
-      - name: Use cmake
-        run: cmake --version
       - name: Setup | Rust
         uses: dtolnay/rust-toolchain@nightly
 
@@ -85,11 +70,6 @@ jobs:
         with:
           submodules: true
       
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.28.x'
-        
       - run: |
           echo "CC=$(brew --prefix gcc@13)/bin/gcc-13" >> "${GITHUB_ENV}"
           echo "FC=$(brew --prefix gcc@13)/bin/gfortran-13" >> "${GITHUB_ENV}"
