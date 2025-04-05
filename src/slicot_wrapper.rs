@@ -1,6 +1,27 @@
 use std::ffi::{c_char, c_double, c_int};
 
 unsafe extern "C" {
+    /// Minimal Realization of state space
+    pub fn tb01pd_(
+        job: *const c_char,
+        equil: *const c_char,
+        n: *const c_int,
+        m: *const c_int,
+        p: *const c_int,
+        a: *mut c_double,
+        lda: *const c_int,
+        b: *mut c_double,
+        ldb: *const c_int,
+        c: *mut c_double,
+        ldc: *const c_int,
+        nr: *mut c_int,
+        tol: *const c_double,
+        iwork: *mut c_int,
+        dwork: *mut c_double,
+        ldwork: *const c_int,
+        info: *mut c_int,
+    );
+
     /// SLICOT transform state-space to transfer matrix. See [SLICOT documentation](https://github.com/TorBorve/SLICOT-Reference)
     pub fn tb04ad_(
         rowcol: *const c_char,

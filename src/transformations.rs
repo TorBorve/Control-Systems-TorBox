@@ -2,7 +2,7 @@ use nalgebra::DMatrix;
 use std::error::Error;
 
 use crate::{
-    slicot_wrapper::tb04ad_,
+    slicot_wrapper::{tb01pd_, tb04ad_},
     systems::{Ss, Tf},
     utils::traits::Time,
 };
@@ -279,6 +279,216 @@ pub enum SsRealization {
     ControllableCF,
 }
 
+/// Options for the minimal realization (`minreal`) operation.
+pub struct MinrealOptions {
+    /// Numerical tolerance for rank decisions. If zero, the algorithm chooses
+    /// an appropriate value internally.
+    pub tolerance: f64,
+    /// Whether to remove uncontrollable states from the system.
+    pub remove_uncontrollable: bool,
+    /// Whether to remove unobservable states from the system.
+    pub remove_unobservable: bool,
+}
+
+impl Default for MinrealOptions {
+    /// Provides default options:
+    /// - `tolerance`: 0.0 (auto-determined)
+    /// - `remove_uncontrollable`: true
+    /// - `remove_unobservable`: true
+    fn default() -> Self {
+        Self {
+            tolerance: 0.0,
+            remove_uncontrollable: true,
+            remove_unobservable: true,
+        }
+    }
+}
+
+/// Performs in-place minimal realization of a continuous-time linear system in
+/// state-space form, using the SLICOT routine `TB01PD`.
+///
+/// This function reduces the order of the system by eliminating uncontrollable
+/// and/or unobservable states.
+///
+/// # Arguments
+///
+/// * `a` - Mutable reference to the state matrix `A` (n×n).
+/// * `b` - Mutable reference to the input matrix `B` (n×m).
+/// * `c` - Mutable reference to the output matrix `C` (p×n).
+/// * `options` - Optional settings for the reduction algorithm.
+///
+/// # Returns
+///
+/// * `Ok(new_order)` - The new system order after reduction.
+/// * `Err(msg)` - If the SLICOT routine fails.
+///
+/// # Errors
+///
+/// Returns an error if the underlying SLICOT call fails or if illegal matrix
+/// dimensions are provided.
+///
+/// # Panics
+///
+/// Panics if matrices have inconsistent dimensions or invalid options are
+/// passed (e.g., negative tolerance).
+pub fn minreal_mat_mut(
+    a: &mut DMatrix<f64>,
+    b: &mut DMatrix<f64>,
+    c: &mut DMatrix<f64>,
+    options: Option<MinrealOptions>,
+) -> Result<usize, String> {
+    let options = options.unwrap_or_default();
+    let tolerance = options.tolerance;
+    let remove_uncontrollable = options.remove_uncontrollable;
+    let remove_unobservable = options.remove_unobservable;
+    assert!(tolerance >= 0.0);
+
+    let n = a.nrows();
+    let m = b.ncols();
+    let p = c.nrows();
+
+    assert!(a.is_square());
+    assert_eq!(b.nrows(), n);
+    assert_eq!(c.ncols(), n);
+
+    let removal_kind = if remove_uncontrollable && remove_unobservable {
+        CString::new("M").unwrap()
+    } else if remove_uncontrollable {
+        CString::new("C").unwrap()
+    } else if remove_unobservable {
+        CString::new("O").unwrap()
+    } else {
+        // why did they call the function?
+        return Ok(n);
+    };
+
+    let apply_scaling = CString::new("S").unwrap();
+
+    let mut reduced_order = -1 as c_int;
+    // let tol = 0.0;
+    let mut iwork = vec![0; n + m.max(p)];
+
+    let ldwork = 100 * (n + n.max(3 * m).max(3 * p));
+    let mut dwork = vec![0.0; ldwork];
+    let mut info = -1 as c_int;
+
+    unsafe {
+        tb01pd_(
+            removal_kind.as_ptr(),
+            apply_scaling.as_ptr(),
+            &(n as c_int),
+            &(m as c_int),
+            &(p as c_int),
+            a.as_mut_ptr(),
+            &(a.nrows() as c_int),
+            b.as_mut_ptr(),
+            &(b.nrows() as c_int),
+            c.as_mut_ptr(),
+            &(c.nrows() as c_int),
+            &mut reduced_order,
+            &tolerance,
+            iwork.as_mut_ptr(),
+            dwork.as_mut_ptr(),
+            &(ldwork as c_int),
+            &mut info,
+        );
+    }
+
+    if info != 0 {
+        return Err(format!(
+            "Minreal failed. SLICOT TB01PD returned info = {}",
+            info
+        ));
+    }
+
+    assert!(reduced_order >= 0);
+    Ok(reduced_order as usize)
+}
+
+/// Performs minimal realization of a state-space model by removing
+/// uncontrollable and/or unobservable states. Returns a new set of
+/// reduced-order matrices.
+///
+/// This is a safe wrapper around `minreal_mut`, performing the reduction
+/// non-destructively by cloning the input matrices.
+///
+/// # Arguments
+///
+/// * `a` - State matrix `A`.
+/// * `b` - Input matrix `B`.
+/// * `c` - Output matrix `C`.
+/// * `options` - Optional settings for the reduction algorithm.
+///
+/// # Returns
+///
+/// * `Ok([A_new, B_new, C_new])` - Reduced system matrices.
+/// * `Err(msg)` - If the SLICOT routine fails.
+///
+/// # Example
+///
+/// ```rust
+/// use control_systems_torbox::transformations::minreal_mat;
+/// use nalgebra::dmatrix;
+/// let a = dmatrix![1.0, 0.0;
+///                  0.0, -0.2];
+/// let b = dmatrix![0.0; 1.0];
+/// let c = dmatrix![0.0, 1.0];
+/// let [a_new, b_new, c_new] = minreal_mat(a, b, c, None).unwrap();
+/// assert_eq!(a_new.nrows(), 1);
+/// ```
+pub fn minreal_mat(
+    mut a: DMatrix<f64>,
+    mut b: DMatrix<f64>,
+    mut c: DMatrix<f64>,
+    options: Option<MinrealOptions>,
+) -> Result<[DMatrix<f64>; 3], String> {
+    let new_nx = minreal_mat_mut(&mut a, &mut b, &mut c, options)?;
+    let a_new = a.view((0, 0), (new_nx, new_nx)).into_owned();
+    let b_new = b.view((0, 0), (new_nx, b.ncols())).into_owned();
+    let c_new = c.view((0, 0), (c.nrows(), new_nx)).into_owned();
+    Ok([a_new, b_new, c_new])
+}
+
+impl<U: Time + 'static> Ss<U> {
+    /// Returns a minimal realization of this state-space system, eliminating
+    /// uncontrollable and/or unobservable states.
+    ///
+    /// This method preserves the original system and returns a new
+    /// reduced-order system.
+    ///
+    /// # Arguments
+    ///
+    /// * `options` - Optional settings for the minimal realization algorithm.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Ss)` - A new state-space system with reduced state dimension.
+    /// * `Err(msg)` - If the realization fails (e.g., due to invalid dimensions
+    ///   or internal errors).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use control_systems_torbox::{Tf, Ss};
+    /// let tf = Tf::s() / Tf::s().powi(2);
+    /// let system = tf.to_ss().unwrap();
+    /// let reduced = system.minreal(None).unwrap();
+    /// ```
+    pub fn minreal(
+        &self,
+        options: Option<MinrealOptions>,
+    ) -> Result<Self, String> {
+        let [a_new, b_new, c_new] = minreal_mat(
+            self.a().clone(),
+            self.b().clone(),
+            self.c().clone(),
+            options,
+        )?;
+        Ss::new(a_new, b_new, c_new, self.d().clone())
+            .map_err(|e| e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
@@ -366,5 +576,38 @@ mod tests {
             "Time ss2tf(tf2ss()) transforms avg: {:?}",
             start.elapsed() / num_iter
         );
+    }
+
+    #[test]
+    fn test_minreal() {
+        let tf = (Tf::s() + 1.0) / (Tf::s().powi(2) + 2.0);
+        let ss = tf.to_ss().unwrap();
+        let tf_minreal = ss.minreal(None).unwrap().to_tf().unwrap();
+        assert_abs_diff_eq!(tf, tf_minreal, epsilon = 1e-2);
+
+        let tf = (Tf::s() + 1.0) / ((Tf::s() + 1.0) * Tf::s());
+        let ss = tf.to_ss().unwrap();
+        println!("a: {}, b: {}, c: {}, d: {}", ss.a(), ss.b(), ss.c(), ss.d());
+        let tf_minreal = ss.minreal(None).unwrap().to_tf().unwrap();
+        println!("tf minreal:\n{}", tf_minreal);
+        assert_abs_diff_eq!(1.0 / Tf::s(), tf_minreal, epsilon = 1e-2);
+
+        let tf = Tf::s().powi(5) / Tf::s().powi(6);
+        let ss = tf.to_ss().unwrap();
+        let tf_minreal = ss.minreal(None).unwrap().to_tf().unwrap();
+        assert_abs_diff_eq!(tf_minreal, 1.0 / Tf::s(), epsilon = 1e-2);
+
+        let tf = Tf::s() / (Tf::s() + 1e-3);
+        let ss = tf.to_ss().unwrap();
+        let tf_minreal = ss.minreal(None).unwrap().to_tf().unwrap();
+        assert_abs_diff_eq!(tf, tf_minreal, epsilon = 1e-6);
+
+        // let mut opts = MinrealOptions::default();
+        // opts.tolerance = 0.01;
+        // let tf_minreal_high_tol =
+        // ss.minreal(Some(opts)).unwrap().to_tf().unwrap();
+        // println!("tf high tol: \n{}", tf_minreal_high_tol);
+
+        // assert_abs_diff_eq!(Tf::new_from_scalar(1.0), tf_minreal_high_tol);
     }
 }
