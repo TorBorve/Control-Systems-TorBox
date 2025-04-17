@@ -49,8 +49,10 @@ where
     /// Creates a new transfer function from a given numerator and denominator.
     ///
     /// # Arguments
-    /// - `num`: A slice representing the numerator coefficients.
-    /// - `den`: A slice representing the denominator coefficients.
+    /// - `num`: A slice representing the numerator coefficients in ascending
+    ///   order, i.e. num = num[0] + num[1]*s + ... .
+    /// - `den`: A slice representing the denominator coefficients in ascending
+    ///   order, i.e. den = den[0] + den[1]*s + ... .
     ///
     /// # Returns
     /// Returns a new transfer function.
