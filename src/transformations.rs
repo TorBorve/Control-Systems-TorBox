@@ -2,6 +2,7 @@ use nalgebra::DMatrix;
 use std::error::Error;
 
 use crate::{
+    Continuous,
     slicot_wrapper::{tb01pd_, tb04ad_},
     systems::{Ss, Tf},
     utils::traits::Time,
@@ -489,6 +490,87 @@ impl<U: Time + 'static> Ss<U> {
     }
 }
 
+impl Tf<f64, Continuous> {
+    /// Returns a Pade approximation of a pure time delay `e^{-sT}` as a
+    /// transfer function.
+    ///
+    /// The Pade approximation is a rational function (ratio of two polynomials)
+    /// that approximates the exponential delay term in the Laplace domain.
+    ///
+    /// # Arguments
+    ///
+    /// * `time_delay` - The delay time `T` (must be non-negative).
+    /// * `order` - The order `n` of the approximation. Higher orders improve
+    ///   accuracy, especially at higher frequencies, but increase computational
+    ///   complexity.
+    ///
+    /// # Returns
+    ///
+    /// A `Tf<f64, Continuous>` representing the rational approximation of the
+    /// delay.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `time_delay` is negative.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use control_systems_torbox::Tf;
+    /// let delay = Tf::pade(0.5, 3);
+    /// println!{"{}", delay};
+    /// ```
+    ///
+    /// # References
+    /// - [RATIONAL APPROXIMATION OF TIME DELAY](https://www2.humusoft.cz/www/papers/tcp09/035_hanta.pdf)
+    pub fn pade(time_delay: f64, order: usize) -> Tf<f64, Continuous> {
+        pade_approx(time_delay, order)
+    }
+}
+
+fn pade_approx(time_delay: f64, order: usize) -> Tf<f64, Continuous> {
+    assert!(time_delay >= 0.0);
+
+    if order == 0 || time_delay == 0.0 {
+        return Tf::new_from_scalar(1.0);
+    }
+
+    let mut num_coeffs = Vec::with_capacity(order + 1);
+    let mut den_coeffs = Vec::with_capacity(order + 1);
+
+    num_coeffs.push(1.0);
+    den_coeffs.push(1.0);
+
+    for i in 1..=order {
+        // Not efficient calculation of coeffs, however likely fast enough.
+        num_coeffs.push(time_delay.powi(i as i32) * pade_coeff_num(i, order));
+        den_coeffs.push(time_delay.powi(i as i32) * pade_coeff_den(i, order));
+    }
+    Tf::new(&num_coeffs, &den_coeffs).normalize()
+}
+
+fn pade_coeff_den(i: usize, n: usize) -> f64 {
+    assert!(i <= n);
+
+    let num = factorial(2 * n - i) * factorial(n);
+    let den = factorial(2 * n) * factorial(i) * factorial(n - i);
+    num as f64 / den as f64
+}
+
+fn pade_coeff_num(i: usize, n: usize) -> f64 {
+    assert!(i <= n);
+
+    let mut abs_coeff = pade_coeff_den(i, n);
+    if i % 2 != 0 {
+        abs_coeff *= -1.;
+    }
+    abs_coeff
+}
+
+fn factorial(n: usize) -> usize {
+    (1..=n).product()
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Instant;
@@ -520,6 +602,30 @@ mod tests {
         den.push(den_max);
 
         Tf::<f64, Continuous>::new(&num, &den)
+    }
+    #[test]
+    fn pade_approx_test() {
+        let sys = Tf::pade(2.5, 0);
+        assert_abs_diff_eq!(sys, Tf::new_from_scalar(1.0));
+        let sys = Tf::pade(0.0, 3);
+        assert_abs_diff_eq!(sys, Tf::new_from_scalar(1.0));
+
+        let sys = Tf::pade(2.5, 1);
+        let sys_matlab = Tf::new(&[0.8, -1.0], &[0.8, 1.0]);
+        assert_abs_diff_eq!(sys, sys_matlab, epsilon = 0.1);
+
+        let sys = Tf::pade(2.5, 4);
+        let sys_matlab = Tf::new(
+            &[43.01, -53.76, 28.8, -8.0, 1.0],
+            &[43.01, 53.76, 28.8, 8.0, 1.0],
+        );
+        assert_abs_diff_eq!(sys, sys_matlab, epsilon = 0.1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn pade_approx_negative() {
+        let _sys = Tf::pade(-1.0, 0);
     }
 
     #[test]
