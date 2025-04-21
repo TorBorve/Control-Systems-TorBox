@@ -1,6 +1,6 @@
 use std::ffi::{CString, c_int};
 
-use nalgebra::{DMatrix, zero};
+use nalgebra::DMatrix;
 use num_complex::{Complex64, c64};
 
 use crate::{
