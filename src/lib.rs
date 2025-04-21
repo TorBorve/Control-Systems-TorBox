@@ -100,6 +100,7 @@ pub mod systems;
 pub mod transformations;
 pub mod utils;
 
+pub use analysis::frequency_response::FrequencyResponse;
 pub use plot::{
     BodePlot, BodePlotData, BodePlotEgui, BodePlotOptions, NyquistPlot,
     NyquistPlotData, NyquistPlotEgui, NyquistPlotOptions, Plot, RGBAColor,

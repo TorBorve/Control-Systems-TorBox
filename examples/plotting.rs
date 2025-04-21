@@ -1,6 +1,6 @@
 use control_systems_torbox as cst;
 
-use cst::{plot::*, systems::Tf, utils::traits::Continuous};
+use cst::{plot::*, systems::Tf, utils::traits::Continuous, FrequencyResponse};
 
 fn main() {
     let sys: Tf<f64, Continuous> = Tf::new(&[1.0], &[0.0, 1.0]);

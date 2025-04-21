@@ -942,7 +942,7 @@ impl Plot for NyquistPlot {
 mod tests {
 
     use super::*;
-    use crate::{systems::Tf, utils::traits::Continuous};
+    use crate::{FrequencyResponse, systems::Tf, utils::traits::Continuous};
     use egui_kittest::Harness;
 
     #[test]
