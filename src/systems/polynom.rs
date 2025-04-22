@@ -332,13 +332,32 @@ impl<T> RationalFunction<T>
 where
     T: Zero + fmt::Display,
 {
-    pub fn to_string_variable(&self, var_name: &str) -> String {
-        let num_str = self.num.to_string_variable(var_name);
-        let den_str = self.den.to_string_variable(var_name);
+    pub fn display_with_var_name(
+        &self,
+        formatter: &mut std::fmt::Formatter<'_>,
+        var_name: &str,
+    ) -> std::fmt::Result {
+        let mut num_str = self.numerator().to_string_variable(var_name);
+        let mut den_str = self.denominator().to_string_variable(var_name);
+        let max_len = num_str.len().max(den_str.len());
+        let dash_line = "\u{2500}".repeat(max_len);
 
-        let dash_line = "\u{2500}".repeat(num_str.len().max(den_str.len()));
+        let center_pad_fn = |s: &str| -> String {
+            let padding = max_len.saturating_sub(s.len()) / 2;
+            format!("{}{}", " ".repeat(padding), s)
+        };
 
-        num_str + "\n" + &dash_line + "\n" + &den_str
+        num_str = center_pad_fn(&num_str);
+        den_str = center_pad_fn(&den_str);
+
+        assert!(num_str.len() <= max_len);
+        assert!(den_str.len() <= max_len);
+
+        write!(
+            formatter,
+            "\n  {}\n  {}\n  {}\n\n",
+            num_str, dash_line, den_str
+        )
     }
 }
 
@@ -347,7 +366,7 @@ where
     T: Zero + fmt::Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_string_variable("x"))
+        self.display_with_var_name(f, "x")
     }
 }
 

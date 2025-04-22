@@ -1,12 +1,14 @@
 use std::{
+    any::TypeId,
     error::Error,
+    fmt,
     marker::PhantomData,
     ops::{
         Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
     },
 };
 
-use crate::utils::traits::Time;
+use crate::{Continuous, Discrete, utils::traits::Time};
 extern crate nalgebra as na;
 use na::DMatrix;
 
@@ -593,6 +595,27 @@ macro_rules! impl_scalar_math_operator_ss {
 
 impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 
+impl<U: Time + 'static> fmt::Display for Ss<U> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "\nA = {} B = {} C = {} D = {}",
+            self.a(),
+            self.b(),
+            self.c(),
+            self.d()
+        )?;
+        let time_domain = if TypeId::of::<U>() == TypeId::of::<Continuous>() {
+            "Continuous"
+        } else if TypeId::of::<U>() == TypeId::of::<Discrete>() {
+            "Discrete"
+        } else {
+            "Unknown"
+        };
+        write!(f, "{}-time state-space model\n\n", time_domain)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use core::f64;
@@ -856,5 +879,19 @@ mod tests {
 
             assert_abs_diff_eq!(tf_fb, ss_fb, epsilon = 1e-1);
         }
+    }
+
+    #[test]
+    fn ss_display() {
+        let sys = (1.0 / Tf::s()).to_ss().unwrap();
+        println!("1: {}", sys);
+
+        let sys = Ss::<Discrete>::new_from_scalar(2.0);
+        println!("2: {}", sys);
+
+        let sys = ((1.0 + Tf::s()) / ((Tf::s() - 1.0) * Tf::s()).powi(2))
+            .to_ss()
+            .unwrap();
+        println!("3: {}after", sys);
     }
 }
