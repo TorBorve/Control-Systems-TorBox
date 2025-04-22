@@ -175,8 +175,7 @@ where
         } else {
             "x"
         };
-        let rf_str = self.rf.to_string_variable(var_name);
-        write!(f, "{}", rf_str)
+        self.rf.display_with_var_name(f, var_name)
     }
 }
 
@@ -578,5 +577,16 @@ mod tests {
         let tf_mul = tf2.clone() * tf1.clone();
         let tf_series = tf1.clone().series(tf2.clone());
         assert_eq!(tf_series, tf_mul);
+    }
+
+    #[test]
+    fn tf_display() {
+        let tf = 1.0 / Tf::s();
+        println!("1: {}", tf);
+        let tf = 1.0 / Tf::s().powi(5) * (Tf::s() + 1.0);
+        println!("2: {}", tf);
+        let tf =
+            2.1 / Tf::s() * (Tf::s() - 1.2).powi(5) / (Tf::s() + 1.0).powi(3);
+        println!("3: {}", tf);
     }
 }
