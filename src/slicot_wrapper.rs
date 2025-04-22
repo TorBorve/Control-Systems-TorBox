@@ -1,5 +1,12 @@
 use std::ffi::{c_char, c_double, c_int};
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Complex64 {
+    pub re: f64,
+    pub im: f64,
+}
+
 unsafe extern "C" {
     /// Minimal Realization of state space
     pub fn tb01pd_(
@@ -138,6 +145,35 @@ unsafe extern "C" {
         iwork: *mut c_int,
         dwork: *mut c_double,
         ldwork: *const c_int,
+        info: *mut c_int,
+    );
+
+    // state space frequency response
+    pub fn tb05ad_(
+        baleig: *const c_char,
+        inita: *const c_char,
+        n: *const c_int,
+        m: *const c_int,
+        p: *const c_int,
+        freq: *const Complex64,
+        a: *mut c_double,
+        lda: *const c_int,
+        b: *mut c_double,
+        ldb: *const c_int,
+        c: *mut c_double,
+        ldc: *const c_int,
+        rcond: *mut c_double,
+        G: *mut Complex64,
+        ldg: *const c_int,
+        evre: *mut c_double,
+        evim: *mut c_double,
+        hinvb: *mut Complex64,
+        ldhinv: *const c_int,
+        iwork: *mut c_int,
+        dwork: *mut c_double,
+        ldwork: *const c_int,
+        zwork: *mut Complex64,
+        lzwork: *const c_int,
         info: *mut c_int,
     );
 }
