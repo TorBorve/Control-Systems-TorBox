@@ -50,6 +50,17 @@ fn h2_norm<U: Time + 'static>(
     let m = b.ncols();
     let p = c.nrows();
 
+    assert!(m > 0);
+    assert!(p > 0);
+
+    if n == 0 {
+        let d_all_zero = d.iter().all(|&x| x == 0.0);
+        if d_all_zero {
+            return Ok(0.);
+        }
+        return Err("Order of system is zero and D matrix is not zero".into());
+    }
+
     let lda = a.nrows();
     let ldb = b.nrows();
     let ldc = c.nrows();
@@ -66,6 +77,7 @@ fn h2_norm<U: Time + 'static>(
     let mut iwarn = -1 as c_int;
     let mut info = -1 as c_int;
 
+    // println!("lda: {}", lda);
     let h2_norm = unsafe {
         ab13bd_(
             time_domain.as_ptr(),
@@ -122,6 +134,21 @@ fn hinf_norm<U: Time + 'static>(
 ) -> Result<f64, String> {
     Ss::<U>::verify_dimensions(&a, &b, &c, &d).map_err(|e| e.to_string())?;
 
+    let n = a.nrows();
+    let m = b.ncols();
+    let p = c.nrows();
+
+    assert!(p > 0);
+    assert!(m > 0);
+
+    if n == 0 {
+        // The gain is constant and equal to D
+        // H-inf norm is the largest singular value
+        let singular_values = d.singular_values();
+        let max_singular_value = singular_values.max();
+        return Ok(max_singular_value);
+    }
+
     let time_domain = if std::any::TypeId::of::<U>()
         == std::any::TypeId::of::<Continuous>()
     {
@@ -136,10 +163,6 @@ fn hinf_norm<U: Time + 'static>(
     let e_shape = CString::new("I").unwrap(); // E is identity
     let equilibration = CString::new("S").unwrap(); // Perform scaling
     let d_is_nonzero = CString::new("D").unwrap();
-
-    let n = a.nrows();
-    let m = b.ncols();
-    let p = c.nrows();
 
     let mut e = DMatrix::identity(n, n);
 
@@ -446,6 +469,7 @@ impl<U: Time + 'static> Ss<U> {
     /// - `Ok(f64)`: The H2 norm of the system.
     /// - `Err(String)`: An error message if the computation fails.
     pub fn norm_h2(&self) -> Result<f64, String> {
+        // println!("before h2: {}", self);
         h2_norm::<U>(
             self.a().clone(),
             self.b().clone(),
@@ -510,6 +534,7 @@ impl<U: Time + 'static> Ss<U> {
 #[cfg(test)]
 mod tests {
     use crate::{
+        Continuous, Ss,
         systems::Tf,
         transformations::SsRealization::{ControllableCF, ObservableCF},
     };
@@ -546,6 +571,13 @@ mod tests {
                 epsilon = 1e-2
             );
         }
+
+        let sys = Ss::<Continuous>::new_from_scalar(-2.0);
+        assert_abs_diff_eq!(sys.norm_hinf().unwrap(), 2.0);
+
+        assert!(sys.norm_h2().is_err());
+        let sys = Ss::<Continuous>::new_from_scalar(0.0);
+        assert_eq!(sys.norm_h2().unwrap(), 0.0);
     }
 
     #[test]

@@ -155,6 +155,17 @@ impl<U: Time + 'static> Tf<f64, U> {
         let (_, den_deg) = tf.degree_num_den();
         let nx = den_deg;
 
+        let mut d = DMatrix::zeros(1, 1);
+        if !tf.is_strictly_proper() {
+            assert!(tf.numerator().coeffs().len() > nx);
+            d[(0, 0)] = tf.numerator().coeffs()[nx];
+        }
+
+        if nx == 0 {
+            assert_eq!(tf.relative_degree(), 0);
+            return Ok(Ss::new_from_scalar(d[(0, 0)]));
+        }
+
         let mut a = DMatrix::zeros(nx, nx);
         a.view_mut((1, 0), (nx - 1, nx - 1))
             .copy_from(&DMatrix::identity(nx - 1, nx - 1));
@@ -162,11 +173,6 @@ impl<U: Time + 'static> Tf<f64, U> {
             a[(row, nx - 1)] = -tf.denominator().coeffs()[row];
         }
 
-        let mut d = DMatrix::zeros(1, 1);
-        if !tf.is_strictly_proper() {
-            assert!(tf.numerator().coeffs().len() > nx);
-            d[(0, 0)] = tf.numerator().coeffs()[nx];
-        }
 
         let mut num_extended = tf.numerator().coeffs().to_vec();
         num_extended.resize(nx, 0.);
@@ -659,6 +665,15 @@ mod tests {
         assert_abs_diff_eq!(ss.d(), &d_ans);
 
         assert_abs_diff_eq!(tf_ret.normalize(), tf.normalize());
+
+        let tf = Tf::<_, Continuous>::new_from_scalar(1.0);
+        let ss = tf.to_ss().unwrap();
+        assert_eq!(ss.order(), 0);
+        assert_eq!(ss.d()[(0, 0)], 1.0);
+
+        assert_eq!(tf.is_strictly_proper(), false);
+        assert_eq!(tf.is_proper(), true);
+
     }
 
     #[test]
