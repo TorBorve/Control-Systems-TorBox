@@ -254,8 +254,7 @@ fn freq_response_ss_mat(
 
     if info != 0 {
         return Err(format!(
-            "Failed to compute frequency response of state space system. Slicot TB05AD failed with error code: {}",
-            info
+            "Failed to compute frequency response of state space system. Slicot TB05AD failed with error code: {info}"
         ));
     }
 

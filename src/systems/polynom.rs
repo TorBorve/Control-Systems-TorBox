@@ -60,8 +60,8 @@ where
 
             let term_i = match exp {
                 0 => val.to_string(),
-                1 => format!("{}{}", val, var_name),
-                _ => format!("{}{}^{}", val, var_name, exp),
+                1 => format!("{val}{var_name}"),
+                _ => format!("{val}{var_name}^{exp}"),
             };
             terms.push(term_i);
         }
@@ -76,7 +76,7 @@ where
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str_poly = self.to_string_variable("x");
-        write!(f, "{}", str_poly)
+        write!(f, "{str_poly}")
     }
 }
 
@@ -353,11 +353,7 @@ where
         assert!(num_str.len() <= max_len);
         assert!(den_str.len() <= max_len);
 
-        write!(
-            formatter,
-            "\n  {}\n  {}\n  {}\n\n",
-            num_str, dash_line, den_str
-        )
+        write!(formatter, "\n  {num_str}\n  {dash_line}\n  {den_str}\n\n")
     }
 }
 
@@ -649,7 +645,7 @@ mod tests {
             lhs_vals
                 .iter()
                 .zip(rhs_vals.iter())
-                .all(|(x, y)| f64::abs_diff_eq(&x, &y, epsilon))
+                .all(|(x, y)| f64::abs_diff_eq(x, y, epsilon))
         }
     }
 
@@ -712,9 +708,9 @@ mod tests {
         }
 
         {
-            println!("poly: {}", p);
+            println!("poly: {p}");
             let p_str = p.to_string();
-            println!("poly to string: {}", p_str);
+            println!("poly to string: {p_str}");
         }
     }
 
@@ -760,7 +756,7 @@ mod tests {
         assert_abs_diff_eq!(rf.num.coeffs[0], 1.0);
         assert_abs_diff_eq!(rf.num.coeffs.last().unwrap().clone(), 3.0);
 
-        println!("Rational function normalize: \n{}", rf);
+        println!("Rational function normalize: \n{rf}");
     }
 
     #[test]
