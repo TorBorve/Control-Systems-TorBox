@@ -173,7 +173,6 @@ impl<U: Time + 'static> Tf<f64, U> {
             a[(row, nx - 1)] = -tf.denominator().coeffs()[row];
         }
 
-
         let mut num_extended = tf.numerator().coeffs().to_vec();
         num_extended.resize(nx, 0.);
 
@@ -673,7 +672,6 @@ mod tests {
 
         assert_eq!(tf.is_strictly_proper(), false);
         assert_eq!(tf.is_proper(), true);
-
     }
 
     #[test]
