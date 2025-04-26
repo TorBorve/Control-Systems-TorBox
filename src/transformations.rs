@@ -119,8 +119,7 @@ fn ss2tf_mat<U: Time + 'static>(
 
     if info != 0 {
         return Err(Box::new(std::io::Error::other(format!(
-            "SLICOT tb04ad_ failed with info code {}",
-            info
+            "SLICOT tb04ad_ failed with info code {info}"
         ))));
     }
 
@@ -402,8 +401,7 @@ pub fn minreal_mat_mut(
 
     if info != 0 {
         return Err(format!(
-            "Minreal failed. SLICOT TB01PD returned info = {}",
-            info
+            "Minreal failed. SLICOT TB01PD returned info = {info}"
         ));
     }
 
@@ -591,7 +589,7 @@ mod tests {
         rng: &mut U,
         max_order: usize,
     ) -> Tf<f64, Continuous> {
-        let den_order = rng.random_range(1..=max_order) as usize;
+        let den_order = rng.random_range(1..=max_order);
         let num_order = rng.random_range(0..=den_order);
 
         let num: Vec<f64> = (0..=num_order)
@@ -644,7 +642,7 @@ mod tests {
         let tf = ss.to_tf().unwrap();
 
         let tf_ans = 1. / Tf::s().powi(2);
-        println!("ss2Tf: \n{}", tf);
+        println!("ss2Tf: \n{tf}");
         assert_abs_diff_eq!(tf, tf_ans);
     }
 
@@ -670,8 +668,8 @@ mod tests {
         assert_eq!(ss.order(), 0);
         assert_eq!(ss.d()[(0, 0)], 1.0);
 
-        assert_eq!(tf.is_strictly_proper(), false);
-        assert_eq!(tf.is_proper(), true);
+        assert!(!tf.is_strictly_proper());
+        assert!(tf.is_proper());
     }
 
     #[test]
@@ -708,7 +706,7 @@ mod tests {
         let ss = tf.to_ss().unwrap();
         println!("a: {}, b: {}, c: {}, d: {}", ss.a(), ss.b(), ss.c(), ss.d());
         let tf_minreal = ss.minreal(None).unwrap().to_tf().unwrap();
-        println!("tf minreal:\n{}", tf_minreal);
+        println!("tf minreal:\n{tf_minreal}");
         assert_abs_diff_eq!(1.0 / Tf::s(), tf_minreal, epsilon = 1e-2);
 
         let tf = Tf::s().powi(5) / Tf::s().powi(6);

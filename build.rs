@@ -13,7 +13,7 @@ fn main() {
         .to_string();
     let make_args: Vec<String> = vec![
         "-j8".to_string(),
-        format!("BUILD_DIR={}", slicot_build_dir).to_string(),
+        format!("BUILD_DIR={slicot_build_dir}").to_string(),
     ];
 
     let status = make()
@@ -32,7 +32,7 @@ fn main() {
         panic!("Failed to build SLICOT")
     }
 
-    println!("cargo:rustc-link-search={}", slicot_build_dir);
+    println!("cargo:rustc-link-search={slicot_build_dir}");
     println!("cargo:rustc-link-lib=static=slicot");
     println!("cargo:rustc-link-lib=static=lpkaux");
     println!("cargo:rustc-link-lib=gfortran");

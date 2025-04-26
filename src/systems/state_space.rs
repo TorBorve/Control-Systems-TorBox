@@ -612,7 +612,7 @@ impl<U: Time + 'static> fmt::Display for Ss<U> {
         } else {
             "Unknown"
         };
-        write!(f, "{}-time state-space model\n\n", time_domain)
+        write!(f, "{time_domain}-time state-space model\n\n")
     }
 }
 
@@ -635,7 +635,7 @@ mod tests {
         rng: &mut U,
         max_order: usize,
     ) -> Tf<f64, Continuous> {
-        let den_order = rng.random_range(1..=max_order) as usize;
+        let den_order = rng.random_range(1..=max_order);
         let num_order = rng.random_range(0..=den_order);
 
         let num: Vec<f64> = (0..=num_order)
@@ -884,14 +884,14 @@ mod tests {
     #[test]
     fn ss_display() {
         let sys = (1.0 / Tf::s()).to_ss().unwrap();
-        println!("1: {}", sys);
+        println!("1: {sys}");
 
         let sys = Ss::<Discrete>::new_from_scalar(2.0);
-        println!("2: {}", sys);
+        println!("2: {sys}");
 
         let sys = ((1.0 + Tf::s()) / ((Tf::s() - 1.0) * Tf::s()).powi(2))
             .to_ss()
             .unwrap();
-        println!("3: {}after", sys);
+        println!("3: {sys}after");
     }
 }

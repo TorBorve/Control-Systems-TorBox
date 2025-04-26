@@ -196,11 +196,11 @@ mod tests {
 
     #[test]
     fn mag_db_covert() {
-        assert_abs_diff_eq!((1. as f64).mag2db(), 0.);
-        assert_abs_diff_eq!((1. as f32).mag2db(), 0.);
+        assert_abs_diff_eq!(1_f64.mag2db(), 0.);
+        assert_abs_diff_eq!(1_f32.mag2db(), 0.);
 
-        assert_abs_diff_eq!((20 as f64).db2mag(), 10.);
-        assert_abs_diff_eq!((20 as f32).db2mag(), 10.);
+        assert_abs_diff_eq!(20_f64.db2mag(), 10.);
+        assert_abs_diff_eq!(20_f32.db2mag(), 10.);
 
         let mut rng = rand::rng();
 

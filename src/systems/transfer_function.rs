@@ -497,10 +497,10 @@ mod tests {
             assert_abs_diff_eq!(y.re, y_expect.re);
             assert_abs_diff_eq!(y.im, y_expect.im);
         }
-        println!("Tf cont: \n{}", tf);
+        println!("Tf cont: \n{tf}");
 
         let tf_z = Tf::<f64, Discrete>::new_from_rf(tf.rf);
-        println!("Tf discrete: \n {}", tf_z);
+        println!("Tf discrete: \n {tf_z}");
     }
 
     #[test]
@@ -553,16 +553,16 @@ mod tests {
             Tf::<f64, Discrete>::new(&[0.0, 0., 0., 1., 2., 0.0], &[0.0, 1.]);
         assert_eq!(sys.degree_num_den(), (4, 1));
         assert_eq!(sys.relative_degree(), 4 - 1);
-        assert_eq!(sys.is_proper(), false);
-        assert_eq!(sys.is_strictly_proper(), false);
+        assert!(!sys.is_proper());
+        assert!(!sys.is_strictly_proper());
 
         let sys = Tf::s() / Tf::s();
-        assert_eq!(sys.is_proper(), true);
-        assert_eq!(sys.is_strictly_proper(), false);
+        assert!(sys.is_proper());
+        assert!(!sys.is_strictly_proper());
 
         let sys = 1. / Tf::s();
-        assert_eq!(sys.is_proper(), true);
-        assert_eq!(sys.is_strictly_proper(), true);
+        assert!(sys.is_proper());
+        assert!(sys.is_strictly_proper());
     }
 
     #[test]
@@ -582,11 +582,11 @@ mod tests {
     #[test]
     fn tf_display() {
         let tf = 1.0 / Tf::s();
-        println!("1: {}", tf);
+        println!("1: {tf}");
         let tf = 1.0 / Tf::s().powi(5) * (Tf::s() + 1.0);
-        println!("2: {}", tf);
+        println!("2: {tf}");
         let tf =
             2.1 / Tf::s() * (Tf::s() - 1.2).powi(5) / (Tf::s() + 1.0).powi(3);
-        println!("3: {}", tf);
+        println!("3: {tf}");
     }
 }

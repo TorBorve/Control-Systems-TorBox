@@ -104,13 +104,11 @@ fn h2_norm<U: Time + 'static>(
 
     if info != 0 {
         return Err(Box::new(std::io::Error::other(format!(
-            "SLICOT ab13bd failed with the follwing error indicator: {}",
-            info
+            "SLICOT ab13bd failed with the follwing error indicator: {info}"
         ))));
     } else if iwarn != 0 {
         return Err(Box::new(std::io::Error::other(format!(
-            "SLICOT ab13bd returned with warning about numerical stability. Iwarn = {}",
-            iwarn
+            "SLICOT ab13bd returned with warning about numerical stability. Iwarn = {iwarn}"
         ))));
     }
 
@@ -222,8 +220,7 @@ fn hinf_norm<U: Time + 'static>(
 
     if info != 0 {
         return Err(format!(
-            "SLICOT ab13dd returned with error code. info = {}",
-            info
+            "SLICOT ab13dd returned with error code. info = {info}"
         ));
     }
 
@@ -316,8 +313,7 @@ pub fn zeros(
 
     if info != 0 {
         return Err(format!(
-            "SLICOT failed to find zeros of state-space system. Info = {}",
-            info
+            "SLICOT failed to find zeros of state-space system. Info = {info}"
         ));
     }
     let ldwork = dwork[0] as usize;
@@ -359,8 +355,7 @@ pub fn zeros(
 
     if info != 0 {
         return Err(format!(
-            "SLICOT failed to find zeros of state-space system. Info = {}",
-            info
+            "SLICOT failed to find zeros of state-space system. Info = {info}"
         ));
     }
     if num_inv_zeros == 0 {
@@ -407,7 +402,7 @@ pub fn zeros(
         );
     }
     if info != 0 {
-        return Err(format!("LAPACK DGGEV returned info = {}", info));
+        return Err(format!("LAPACK DGGEV returned info = {info}"));
     }
     lwork = dwork[0] as c_int;
     assert!(lwork > 0);
@@ -436,7 +431,7 @@ pub fn zeros(
         );
     }
     if info != 0 {
-        return Err(format!("LAPACK DGGEV returned info = {}", info));
+        return Err(format!("LAPACK DGGEV returned info = {info}"));
     }
 
     let mut zeros = Vec::with_capacity(n_gen_eigen);
@@ -624,9 +619,9 @@ mod tests {
     #[test]
     fn ss_zeros() {
         let tf = (Tf::s() - 1.0) * (Tf::s() + 4.0) / (Tf::s() + 2.0).powi(2);
-        println!("tf: \n{}", tf);
+        println!("tf: \n{tf}");
         let zeros = tf.to_ss_method(ControllableCF).unwrap().zeros().unwrap();
-        println!("zeros: {:?}", zeros);
+        println!("zeros: {zeros:?}");
         assert_eq!(zeros.len(), 2);
 
         let tf = 1.0 / Tf::s();
@@ -675,18 +670,18 @@ mod tests {
     #[test]
     fn ss_is_stable() {
         let tf = 1.0 / Tf::s();
-        assert_eq!(tf.to_ss_method(ObservableCF).unwrap().is_stable(), false);
+        assert!(!tf.to_ss_method(ObservableCF).unwrap().is_stable());
 
         let tf = (Tf::s() + 1.0) / (Tf::s() + 1.0).powi(4);
         let ss = tf.to_ss_method(ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), true);
+        assert!(ss.is_stable());
 
         let tf = 1.0 / ((Tf::s() + 1.0) * (Tf::s() - 2.0));
         let ss = tf.to_ss_method(ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), false);
+        assert!(!ss.is_stable());
 
         let tf = 1.0 / (Tf::s().powi(2) + 2.0 * 0.01 * Tf::s() + 1.0);
         let ss = tf.to_ss_method(ObservableCF).unwrap();
-        assert_eq!(ss.is_stable(), true);
+        assert!(ss.is_stable());
     }
 }
