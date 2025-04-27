@@ -204,7 +204,7 @@ impl<U: Time + 'static> Ss<U> {
         let is_valid = self.is_valid();
         assert!(
             is_valid.is_ok(),
-            "Ss is invalid: Message: {}, Ss: {:?}",
+            "Ss is invalid: Message: {}, Ss: {}",
             is_valid.unwrap_err(),
             self
         );
@@ -278,7 +278,7 @@ impl<U: Time + 'static> Ss<U> {
     ///
     /// # Returns
     /// A new system representing the series connection of `self` and `sys2`.
-    pub fn series(self, sys2: Self) -> Self {
+    pub fn series(&self, sys2: &Self) -> Self {
         assert_eq!(
             self.noutputs(),
             sys2.ninputs(),
@@ -286,9 +286,37 @@ impl<U: Time + 'static> Ss<U> {
         );
         self.assert_valid();
         sys2.assert_valid();
-        let ret = sys2 * self;
-        ret.assert_valid();
-        ret
+
+        let nx2 = sys2.order();
+        let nu2 = sys2.ninputs();
+        let ny2 = sys2.noutputs();
+        let nx1 = self.order();
+        let nu1 = self.ninputs();
+        let ny1 = self.noutputs();
+        assert_eq!(nu2, ny1);
+
+        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
+        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(self.a());
+        a_new
+            .view_mut((nx1, 0), (nx2, nx1))
+            .copy_from(&(sys2.b() * self.c()));
+        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(sys2.a());
+
+        let mut b_new = DMatrix::zeros(nx1 + nx2, nu1);
+        b_new.view_mut((0, 0), (nx1, nu1)).copy_from(self.b());
+        b_new
+            .view_mut((nx1, 0), (nx2, nu1))
+            .copy_from(&(sys2.b() * self.d()));
+
+        let mut c_new = DMatrix::zeros(ny2, nx1 + nx2);
+        c_new
+            .view_mut((0, 0), (ny2, nx1))
+            .copy_from(&(sys2.d() * self.c()));
+        c_new.view_mut((0, nx1), (ny2, nx2)).copy_from(sys2.c());
+
+        let d_new = sys2.d() * self.d();
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
 
     /// Connects two systems in **parallel**.
@@ -305,7 +333,7 @@ impl<U: Time + 'static> Ss<U> {
     ///
     /// # Returns
     /// A new system representing the parallel connection of `self` and `sys2`.
-    pub fn parallel(self, sys2: Self) -> Self {
+    pub fn parallel(&self, sys2: &Self) -> Self {
         assert_eq!(
             self.shape(),
             sys2.shape(),
@@ -313,9 +341,28 @@ impl<U: Time + 'static> Ss<U> {
         );
         self.assert_valid();
         sys2.assert_valid();
-        let ret = self + sys2;
-        ret.assert_valid();
-        ret
+
+        let nu = self.ninputs();
+        let ny = self.noutputs();
+
+        let nx1 = self.order();
+        let nx2 = sys2.order();
+
+        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
+        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(self.a());
+        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(sys2.a());
+
+        let mut b_new = DMatrix::zeros(nx1 + nx2, nu);
+        b_new.view_mut((0, 0), (nx1, nu)).copy_from(self.b());
+        b_new.view_mut((nx1, 0), (nx2, nu)).copy_from(sys2.b());
+
+        let mut c_new = DMatrix::zeros(ny, nx1 + nx2);
+        c_new.view_mut((0, 0), (ny, nx1)).copy_from(self.c());
+
+        c_new.view_mut((0, nx1), (ny, nx2)).copy_from(sys2.c());
+        let d_new = self.d() + sys2.d();
+
+        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
     }
 
     /// **Negative** Feedback connection of `self` with `sys2`.
@@ -414,6 +461,24 @@ impl<U: Time + 'static> Ss<U> {
     }
 }
 
+impl<'b, U: Time + 'static> Add<&'b Ss<U>> for &Ss<U> {
+    type Output = Ss<U>;
+
+    /// Adds two state-space systems in parallel.
+    ///
+    /// y = y1 + y2
+    ///
+    /// # Panics
+    /// Panics if the input-output dimensions of both systems do not match.
+    fn add(self, rhs: &'b Ss<U>) -> Self::Output {
+        assert_eq!(self.shape(), rhs.shape());
+        self.assert_valid();
+        rhs.assert_valid();
+
+        self.parallel(rhs)
+    }
+}
+
 impl<U: Time + 'static> Add for Ss<U> {
     type Output = Ss<U>;
 
@@ -424,31 +489,7 @@ impl<U: Time + 'static> Add for Ss<U> {
     /// # Panics
     /// Panics if the input-output dimensions of both systems do not match.
     fn add(self, rhs: Self) -> Self::Output {
-        assert_eq!(self.shape(), rhs.shape());
-        self.assert_valid();
-        rhs.assert_valid();
-
-        let nu = self.ninputs();
-        let ny = self.noutputs();
-
-        let nx1 = self.order();
-        let nx2 = rhs.order();
-
-        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
-        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(self.a());
-        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(rhs.a());
-
-        let mut b_new = DMatrix::zeros(nx1 + nx2, nu);
-        b_new.view_mut((0, 0), (nx1, nu)).copy_from(self.b());
-        b_new.view_mut((nx1, 0), (nx2, nu)).copy_from(rhs.b());
-
-        let mut c_new = DMatrix::zeros(ny, nx1 + nx2);
-        c_new.view_mut((0, 0), (ny, nx1)).copy_from(self.c());
-
-        c_new.view_mut((0, nx1), (ny, nx2)).copy_from(rhs.c());
-        let d_new = self.d() + rhs.d();
-
-        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
+        &self + &rhs
     }
 }
 
@@ -459,10 +500,23 @@ impl<U: Time + 'static> Neg for Ss<U> {
     ///
     /// I.e. y_new = -y    
     fn neg(mut self) -> Self::Output {
-        self.c = -self.c();
-        self.d = -self.d();
+        self.c *= -1.0;
+        self.d *= -1.0;
         self.assert_valid();
         self
+    }
+}
+
+impl<'b, U: Time + 'static> Sub<&'b Ss<U>> for &Ss<U> {
+    type Output = Ss<U>;
+
+    /// Subtracts two state-space systems by adding one and negating the other.
+    fn sub(self, rhs: &'b Ss<U>) -> Self::Output {
+        self.assert_valid();
+        rhs.assert_valid();
+
+        // TODO: should not need to use clone
+        self + &(-rhs.clone())
     }
 }
 
@@ -474,6 +528,25 @@ impl<U: Time + 'static> Sub for Ss<U> {
         self.assert_valid();
         rhs.assert_valid();
         self + (-rhs)
+    }
+}
+
+impl<'b, U: Time + 'static> Mul<&'b Ss<U>> for &Ss<U> {
+    type Output = Ss<U>;
+
+    /// Multiplies two state-space systems in series (cascading connection).
+    ///
+    /// The resulting system represents `y <- self <- rhs <- u`, where `self`
+    /// follows `rhs`.
+    ///
+    /// # Panics
+    /// Panics if the output size of `rhs` does not match the input size of
+    /// `self`.
+    fn mul(self, rhs: &'b Ss<U>) -> Self::Output {
+        self.assert_valid();
+        rhs.assert_valid();
+
+        rhs.series(self)
     }
 }
 
@@ -489,39 +562,29 @@ impl<U: Time + 'static> Mul for Ss<U> {
     /// Panics if the output size of `rhs` does not match the input size of
     /// `self`.
     fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<'b, U: Time + 'static> Div<&'b Ss<U>> for &Ss<U> {
+    type Output = Ss<U>;
+
+    /// Divides one state-space system by another (right multiplication by
+    /// inverse).
+    ///
+    /// # Warning
+    /// The need for division often arrised due to feedback connections. Such as
+    /// T = L/(1 + L). For such cases use the `feedback` function, which is more
+    /// numerically stable.
+    ///
+    /// # Panics
+    /// Panics if the inverse of `rhs` cannot be computed.
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn div(self, rhs: &'b Ss<U>) -> Self::Output {
         self.assert_valid();
         rhs.assert_valid();
 
-        let nx2 = self.order();
-        let nu2 = self.ninputs();
-        let ny2 = self.noutputs();
-        let nx1 = rhs.order();
-        let nu1 = rhs.ninputs();
-        let ny1 = rhs.noutputs();
-        assert_eq!(nu2, ny1);
-
-        let mut a_new = DMatrix::zeros(nx1 + nx2, nx1 + nx2);
-        a_new.view_mut((0, 0), (nx1, nx1)).copy_from(rhs.a());
-        a_new
-            .view_mut((nx1, 0), (nx2, nx1))
-            .copy_from(&(self.b() * rhs.c()));
-        a_new.view_mut((nx1, nx1), (nx2, nx2)).copy_from(self.a());
-
-        let mut b_new = DMatrix::zeros(nx1 + nx2, nu1);
-        b_new.view_mut((0, 0), (nx1, nu1)).copy_from(rhs.b());
-        b_new
-            .view_mut((nx1, 0), (nx2, nu1))
-            .copy_from(&(self.b() * rhs.d()));
-
-        let mut c_new = DMatrix::zeros(ny2, nx1 + nx2);
-        c_new
-            .view_mut((0, 0), (ny2, nx1))
-            .copy_from(&(self.d() * rhs.c()));
-        c_new.view_mut((0, nx1), (ny2, nx2)).copy_from(self.c());
-
-        let d_new = self.d() * rhs.d();
-
-        Ss::<U>::new(a_new, b_new, c_new, d_new).unwrap()
+        self * &rhs.inv().unwrap()
     }
 }
 
@@ -540,9 +603,7 @@ impl<U: Time + 'static> Div for Ss<U> {
     /// Panics if the inverse of `rhs` cannot be computed.
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: Self) -> Self::Output {
-        self.assert_valid();
-        rhs.assert_valid();
-        self * rhs.inv().unwrap()
+        &self / &rhs
     }
 }
 
@@ -557,6 +618,14 @@ macro_rules! impl_compound_assign {
                 *self = self.clone().$method(rhs)
             }
         }
+
+        impl<'a, U: Time + 'static> $assign_trait<&'a $struct_type<U>> for $struct_type<U>
+        {
+            fn $assign_method(&mut self, rhs: &'a $struct_type<U>) {
+                *self = <&Self as $trait<&Self>>::$method(self, rhs);
+            }
+        }
+        
     )*
     };
 }
@@ -621,6 +690,7 @@ mod tests {
     use core::f64;
 
     use approx::assert_abs_diff_eq;
+    use num_complex::c64;
     use rand::Rng;
 
     use super::*;
@@ -628,7 +698,7 @@ mod tests {
         analysis::frequency_response::lin_space,
         systems::Tf,
         transformations::SsRealization::{ControllableCF, ObservableCF},
-        utils::traits::Continuous,
+        utils::traits::Continuous, FrequencyResponse,
     };
 
     fn rand_proper_tf<U: Rng>(
@@ -854,11 +924,11 @@ mod tests {
         assert_abs_diff_eq!(tf_fb, 0.5 * Tf::s() / (Tf::s() + 0.5));
 
         let ss_add = ss1.clone() + ss2.clone();
-        let ss_parallel = ss1.clone().parallel(ss2.clone());
+        let ss_parallel = ss1.parallel(&ss2);
         assert_eq!(ss_add, ss_parallel);
 
         let ss_mul = ss2.clone() * ss1.clone();
-        let ss_series = ss1.series(ss2);
+        let ss_series = ss1.series(&ss2);
         assert_eq!(ss_mul, ss_series);
     }
 
@@ -875,7 +945,7 @@ mod tests {
 
             let ss_fb = ss1.feedback(ss2);
             let ss_fb = ss_fb.to_tf().unwrap();
-            let tf_fb = tf1.feedback(tf2);
+            let tf_fb = tf1.feedback(&tf2);
 
             assert_abs_diff_eq!(tf_fb, ss_fb, epsilon = 1e-1);
         }
@@ -893,5 +963,23 @@ mod tests {
             .to_ss()
             .unwrap();
         println!("3: {sys}after");
+    }
+
+    #[test]
+    fn ss_reference_arithmetic() {
+        let mut ss = (1.0 / Tf::s().powi(2)).to_ss().unwrap();
+        let ss_org = ss.clone();
+
+        ss += &ss_org;
+        ss += &ss_org;
+
+        let ans = (ss_org.clone() + ss_org.clone()) + ss_org.clone();
+
+        let freq = c64(0.0, 1.2);
+        let resp1 = ss.freq_response(&freq);
+        let resp2 = ans.freq_response(&freq);
+        
+        assert_abs_diff_eq!(resp1.re, resp2.re, epsilon = 1e-9);
+        assert_abs_diff_eq!(resp1.im, resp2.im, epsilon = 1e-9);
     }
 }
