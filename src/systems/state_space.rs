@@ -625,7 +625,7 @@ macro_rules! impl_compound_assign {
                 *self = <&Self as $trait<&Self>>::$method(self, rhs);
             }
         }
-        
+
     )*
     };
 }
@@ -695,10 +695,11 @@ mod tests {
 
     use super::*;
     use crate::{
+        FrequencyResponse,
         analysis::frequency_response::lin_space,
         systems::Tf,
         transformations::SsRealization::{ControllableCF, ObservableCF},
-        utils::traits::Continuous, FrequencyResponse,
+        utils::traits::Continuous,
     };
 
     fn rand_proper_tf<U: Rng>(
@@ -978,7 +979,7 @@ mod tests {
         let freq = c64(0.0, 1.2);
         let resp1 = ss.freq_response(&freq);
         let resp2 = ans.freq_response(&freq);
-        
+
         assert_abs_diff_eq!(resp1.re, resp2.re, epsilon = 1e-9);
         assert_abs_diff_eq!(resp1.im, resp2.im, epsilon = 1e-9);
     }

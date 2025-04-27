@@ -223,9 +223,10 @@ where
 macro_rules! impl_operator_tf {
     ([$(($trait:ident, $method:ident)), *]) => {
     $(
+        // Value implementation
         impl<T, U> $trait for Tf<T, U>
         where
-            T: $trait<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T>,
+            T: $trait<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T> + Copy,
             U: Time,
         {
             type Output = Tf<T, U>;
@@ -234,19 +235,44 @@ macro_rules! impl_operator_tf {
                 Tf::new_from_rf(new_rf)
             }
         }
+
+        // Reference Implementation
+        impl<'a, T, U> $trait<&'a Tf<T, U>> for &Tf<T, U>
+        where
+            T: $trait<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T> + Copy,
+            U: Time,
+        {
+            type Output = Tf<T, U>;
+            fn $method(self, rhs: &'a Tf<T, U>) -> Self::Output {
+                let new_rf = <&RationalFunction<T> as $trait<&RationalFunction<T>>>::$method(&self.rf, &rhs.rf);
+                Tf::new_from_rf(new_rf)
+            }
+        }
     )*
     };
 }
 impl_operator_tf!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
 
-impl<T, U> Neg for Tf<T, U>
+impl<T, U> Neg for &Tf<T, U>
 where
-    T: Neg<Output = T> + Clone + Zero + One,
+    T: Neg<Output = T> + Clone + Zero + One + Copy,
     U: Time,
 {
     type Output = Tf<T, U>;
     fn neg(self) -> Self::Output {
-        let new_rf = -self.rf;
+        let new_rf = -&self.rf;
+        Tf::new_from_rf(new_rf)
+    }
+}
+
+impl<T, U> Neg for Tf<T, U>
+where
+    T: Neg<Output = T> + Clone + Zero + One + Copy,
+    U: Time,
+{
+    type Output = Tf<T, U>;
+    fn neg(self) -> Self::Output {
+        let new_rf = -&self.rf;
         Tf::new_from_rf(new_rf)
     }
 }
@@ -256,10 +282,19 @@ macro_rules! impl_compound_assign {
     $(
         impl<T, U: Time> $assign_trait for $struct_type<T, U>
         where
-            T: $trait<Output = T> + $assign_trait + One + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Zero,
+            T: $trait<Output = T> + $assign_trait + One + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Zero + Copy,
         {
             fn $assign_method(&mut self, rhs: Self) {
                 *self = self.clone().$method(rhs)
+            }
+        }
+
+        impl<'a, T, U: Time> $assign_trait<&'a $struct_type<T, U>> for $struct_type<T, U>
+        where
+            T: $trait<Output = T> + $assign_trait + One + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Zero + Copy,
+        {
+            fn $assign_method(&mut self, rhs: &$struct_type<T, U>) {
+                *self = <&Self as $trait<&Self>>::$method(self, rhs);
             }
         }
     )*
@@ -368,7 +403,7 @@ where
 
 impl<T, U: Time> Tf<T, U>
 where
-    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default,
+    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default + Copy,
 {
     /// Raises the transfer function to a specified integer power.
     ///
@@ -377,7 +412,7 @@ where
     ///
     /// # Returns
     /// A new transfer function raised to the specified power.
-    pub fn powi(self, exp: i32) -> Self {
+    pub fn powi(&self, exp: i32) -> Self {
         let new_rf = self.rf.powi(exp);
         Tf::new_from_rf(new_rf)
     }
@@ -386,6 +421,7 @@ where
 impl<T, U: Time> Tf<T, U>
 where
     T: Clone
+        + Copy
         + Add<T, Output = T>
         + Zero
         + One
@@ -407,7 +443,7 @@ where
     ///
     /// # Returns
     /// A new system representing the series connection of `self` and `sys2`.
-    pub fn series(self, sys2: Self) -> Self {
+    pub fn series(&self, sys2: &Self) -> Self {
         sys2 * self
     }
 
@@ -425,7 +461,7 @@ where
     ///
     /// # Returns
     /// A new system representing the parallel connection of `self` and `sys2`.
-    pub fn parallel(self, sys2: Self) -> Self {
+    pub fn parallel(&self, sys2: &Self) -> Self {
         self + sys2
     }
 
@@ -448,7 +484,7 @@ where
     /// # Returns
     /// A new system representing the negative feedback connection of `self`
     /// with `sys2`.
-    pub fn feedback(self, sys2: Self) -> Self {
+    pub fn feedback(&self, sys2: &Self) -> Self {
         let n1 = self.numerator();
         let d1 = self.denominator();
         let n2 = sys2.numerator();
@@ -532,7 +568,7 @@ mod tests {
     #[test]
     fn tf_math() {
         let tf = Tf::s() + 1. / (Tf::s() + 1.0);
-        let tf_neg = -tf.clone();
+        let tf_neg = -&tf;
         let tf_neg_neg = -tf_neg;
         assert_eq!(tf, tf_neg_neg);
     }
@@ -571,11 +607,11 @@ mod tests {
         let tf2 = 1.0 / Tf::s();
 
         let tf_add = tf1.clone() + tf2.clone();
-        let tf_parallel = tf1.clone().parallel(tf2.clone());
+        let tf_parallel = tf1.clone().parallel(&tf2);
         assert_eq!(tf_add, tf_parallel);
 
         let tf_mul = tf2.clone() * tf1.clone();
-        let tf_series = tf1.clone().series(tf2.clone());
+        let tf_series = tf1.clone().series(&tf2);
         assert_eq!(tf_series, tf_mul);
     }
 
@@ -588,5 +624,18 @@ mod tests {
         let tf =
             2.1 / Tf::s() * (Tf::s() - 1.2).powi(5) / (Tf::s() + 1.0).powi(3);
         println!("3: {tf}");
+    }
+
+    #[test]
+    fn reference_arithemtic() {
+        let mut tf = 1.0 / Tf::s();
+        let tf_org = tf.clone();
+
+        tf += &tf_org;
+        tf += &tf_org;
+
+        let ans = 3.0 * tf_org;
+
+        assert_abs_diff_eq!(tf.eval(&1.2), ans.eval(&1.2), epsilon = 1e-9);
     }
 }

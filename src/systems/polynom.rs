@@ -112,13 +112,13 @@ impl<T> Polynomial<T> {
     }
 }
 
-impl<T> Mul for Polynomial<T>
+impl<'a, T> Mul<&'a Polynomial<T>> for &Polynomial<T>
 where
     T: Default + Mul<Output = T> + AddAssign + Clone,
 {
     type Output = Polynomial<T>;
 
-    fn mul(self, rhs: Self) -> Self::Output {
+    fn mul(self, rhs: &'a Polynomial<T>) -> Self::Output {
         let mut result =
             vec![T::default(); self.coeffs.len() + rhs.coeffs.len() - 1];
         for (idx_l, val_l) in self.coeffs.iter().enumerate() {
@@ -131,13 +131,33 @@ where
     }
 }
 
-impl<T> Add for Polynomial<T>
+impl<T> Mul for Polynomial<T>
+where
+    T: Default + Mul<Output = T> + AddAssign + Clone,
+{
+    type Output = Polynomial<T>;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+        // let mut result =
+        //     vec![T::default(); self.coeffs.len() + rhs.coeffs.len() - 1];
+        // for (idx_l, val_l) in self.coeffs.iter().enumerate() {
+        //     for (idx_r, val_r) in rhs.coeffs.iter().enumerate() {
+        //         result[idx_l + idx_r] += val_l.clone() * val_r.clone();
+        //     }
+        // }
+
+        // Polynomial { coeffs: result }
+    }
+}
+
+impl<'a, T> Add<&'a Polynomial<T>> for &Polynomial<T>
 where
     T: AddAssign + Default + Clone,
 {
     type Output = Polynomial<T>;
 
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: &'a Polynomial<T>) -> Self::Output {
         let mut result =
             vec![T::default(); self.coeffs.len().max(rhs.coeffs.len())];
         for (idx, val) in self.coeffs.iter().enumerate() {
@@ -151,27 +171,49 @@ where
     }
 }
 
-impl<T> Neg for Polynomial<T>
+impl<T> Add for Polynomial<T>
 where
-    T: Neg<Output = T> + Clone,
+    T: AddAssign + Default + Clone,
+{
+    type Output = Polynomial<T>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl<T> Neg for &Polynomial<T>
+where
+    T: Neg<Output = T> + Clone + Copy,
 {
     type Output = Polynomial<T>;
     fn neg(self) -> Self::Output {
         Polynomial {
-            coeffs: self.coeffs.into_iter().map(|x| -x).collect(),
+            coeffs: self.coeffs.iter().map(|&x| -x).collect(),
         }
+    }
+}
+
+impl<'a, T> Sub<&'a Polynomial<T>> for &Polynomial<T>
+where
+    T: Neg<Output = T> + Clone + AddAssign + Default + Copy,
+{
+    type Output = Polynomial<T>;
+
+    fn sub(self, rhs: &'a Polynomial<T>) -> Self::Output {
+        let neg_rhs = -rhs;
+        self + &neg_rhs
     }
 }
 
 impl<T> Sub for Polynomial<T>
 where
-    T: Neg<Output = T> + Clone + AddAssign + Default,
+    T: Neg<Output = T> + Clone + AddAssign + Default + Copy,
 {
     type Output = Polynomial<T>;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let neg_rhs = -rhs;
-        self + neg_rhs
+        &self - &rhs
     }
 }
 
@@ -180,10 +222,19 @@ macro_rules! impl_compound_assign {
     $(
         impl<T> $assign_trait for $struct_type<T>
         where
-            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add,
+            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Copy,
         {
             fn $assign_method(&mut self, rhs: Self) {
                 *self = self.clone().$method(rhs)
+            }
+        }
+
+        impl<'a, T> $assign_trait<&'a $struct_type<T>> for $struct_type<T>
+        where
+            T: $trait<Output = T> + $assign_trait + Clone + Default + AddAssign + Neg<Output = T> + Mul<Output = T> + Add + Copy,
+        {
+            fn $assign_method(&mut self, rhs: &'a $struct_type<T>) {
+                *self = <&Self as $trait<&Self>>::$method(self, rhs);
             }
         }
     )*
@@ -426,13 +477,13 @@ where
 
 impl<T> RationalFunction<T>
 where
-    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default,
+    T: One + Clone + Zero + Add + Mul<Output = T> + AddAssign + Default + Copy,
 {
-    pub fn powi(self, exp: i32) -> Self {
+    pub fn powi(&self, exp: i32) -> Self {
         let base = self;
         let mut result = RationalFunction::new_from_scalar(T::one());
         for _ in 0..exp.abs() {
-            result = result * base.clone();
+            result = &result * base;
         }
         if exp < 0 {
             result = RationalFunction::new_from_scalar(T::one()) / result
@@ -459,32 +510,67 @@ where
     }
 }
 
-impl<T> Mul for RationalFunction<T>
+impl<'a, T> Mul<&'a RationalFunction<T>> for &RationalFunction<T>
 where
-    T: Add + Default + Mul<Output = T> + AddAssign + Clone,
+    T: Add + Default + Mul<Output = T> + AddAssign + Clone + Copy,
 {
     type Output = RationalFunction<T>;
-    fn mul(self, rhs: Self) -> Self::Output {
-        let new_num = self.num * rhs.num;
-        let new_den = self.den * rhs.den;
+    fn mul(self, rhs: &'a RationalFunction<T>) -> Self::Output {
+        let new_num = &self.num * &rhs.num;
+        let new_den = &self.den * &rhs.den;
 
-        Self {
+        RationalFunction {
             num: new_num,
             den: new_den,
         }
     }
 }
 
+impl<T> Mul for RationalFunction<T>
+where
+    T: Add + Default + Mul<Output = T> + AddAssign + Clone + Copy,
+{
+    type Output = RationalFunction<T>;
+    fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl<'a, T> Div<&'a RationalFunction<T>> for &RationalFunction<T>
+where
+    T: Clone + Default + Mul<Output = T> + AddAssign + Copy,
+{
+    type Output = RationalFunction<T>;
+    fn div(self, rhs: &'a RationalFunction<T>) -> Self::Output {
+        let new_num = &self.num * &rhs.den;
+        let new_den = &self.den * &rhs.num;
+
+        RationalFunction {
+            num: new_num,
+            den: new_den,
+        }
+    }
+}
 impl<T> Div for RationalFunction<T>
 where
-    T: Clone + Default + Mul<Output = T> + AddAssign,
+    T: Clone + Default + Mul<Output = T> + AddAssign + Copy,
 {
     type Output = RationalFunction<T>;
     fn div(self, rhs: Self) -> Self::Output {
-        let new_num = self.num * rhs.den;
-        let new_den = self.den * rhs.num;
+        &self / &rhs
+    }
+}
 
-        Self {
+impl<'a, T> Add<&'a RationalFunction<T>> for &RationalFunction<T>
+where
+    T: AddAssign + Default + Clone + Mul<Output = T>,
+{
+    type Output = RationalFunction<T>;
+    fn add(self, rhs: &'a RationalFunction<T>) -> Self::Output {
+        let new_den = &self.den * &rhs.den;
+        let new_num = &self.num * &rhs.den + &rhs.num * &self.den;
+
+        RationalFunction {
             num: new_num,
             den: new_den,
         }
@@ -497,38 +583,42 @@ where
 {
     type Output = RationalFunction<T>;
     fn add(self, rhs: Self) -> Self::Output {
-        let new_den = self.den.clone() * rhs.den.clone();
-        let new_num = self.num * rhs.den + rhs.num * self.den;
-
-        Self {
-            num: new_num,
-            den: new_den,
-        }
+        &self + &rhs
     }
 }
 
-impl<T> Neg for RationalFunction<T>
+impl<T> Neg for &RationalFunction<T>
 where
-    T: Neg<Output = T> + Clone,
+    T: Neg<Output = T> + Clone + Copy,
 {
     type Output = RationalFunction<T>;
     fn neg(self) -> Self::Output {
-        let new_num = -self.num;
+        let new_num = -&self.num;
 
-        Self {
+        // TODO: should not need to use clone here
+        RationalFunction {
             num: new_num,
-            den: self.den,
+            den: self.den.clone(),
         }
     }
 }
 
+impl<'a, T> Sub<&'a RationalFunction<T>> for &RationalFunction<T>
+where
+    T: Neg<Output = T> + Clone + AddAssign + Default + Mul<Output = T> + Copy,
+{
+    type Output = RationalFunction<T>;
+    fn sub(self, rhs: &'a RationalFunction<T>) -> Self::Output {
+        self + &(-rhs)
+    }
+}
 impl<T> Sub for RationalFunction<T>
 where
-    T: Neg<Output = T> + Clone + AddAssign + Default + Mul<Output = T>,
+    T: Neg<Output = T> + Clone + AddAssign + Default + Mul<Output = T> + Copy,
 {
     type Output = RationalFunction<T>;
     fn sub(self, rhs: Self) -> Self::Output {
-        self + (-rhs)
+        &self - &rhs
     }
 }
 
@@ -866,5 +956,18 @@ mod tests {
         let rf =
             RationalFunction::new_from_coeffs(&[1., 2., 4.], &[1., 4., 2., 8.]);
         assert_abs_diff_eq!(rf.clone(), rf);
+    }
+
+    #[test]
+    fn reference_arithemtic() {
+        let mut rf1 =
+            RationalFunction::new_from_coeffs(&[1.0, 2.0], &[2.0, 1.0]);
+        let rf2 = rf1.clone();
+
+        rf1 += &rf2;
+        rf1 += &rf2;
+
+        let ans: RationalFunction<f64> = 3.0 * rf2;
+        assert_abs_diff_eq!(rf1.eval(&1.2), ans.eval(&1.2));
     }
 }
