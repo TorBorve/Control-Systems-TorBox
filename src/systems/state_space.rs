@@ -1029,6 +1029,10 @@ mod tests {
         assert_abs_diff_eq!(resp1.im, resp2.im, epsilon = 1e-9);
 
         let s_inv = (1.0 / Tf::s()).to_ss().unwrap();
-        let _ = 1.0 + &s_inv * &s_inv / (1.0 + &s_inv / 1.0);
+        let _ = 1.0 + &s_inv * &s_inv / (1.0 + &s_inv / 1.0) + (&s_inv - &s_inv);
+        let _ = 1.0 + &s_inv;
+        let _ = s_inv.clone() + &s_inv;
+        let _ = &s_inv + s_inv.clone();
+
     }
 }
