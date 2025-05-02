@@ -691,10 +691,10 @@ macro_rules! impl_comb_ref_and_no_ref_operators {
                 }
             }
 
-            impl<U: Time + 'static> $operator<Ss<U>> for &Ss<U>  
+            impl<U: Time + 'static> $operator<Ss<U>> for &Ss<U>
             {
                 type Output = Ss<U>;
-                fn $operator_fn(self, rhs: Ss<U>) -> Self::Output { 
+                fn $operator_fn(self, rhs: Ss<U>) -> Self::Output {
                     self.$operator_fn(&rhs)
                 }
             }
@@ -702,9 +702,12 @@ macro_rules! impl_comb_ref_and_no_ref_operators {
     };
 }
 
-impl_comb_ref_and_no_ref_operators!(
-    [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
-);
+impl_comb_ref_and_no_ref_operators!([
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
 
 impl<U: Time + 'static> fmt::Display for Ss<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1024,7 +1027,6 @@ mod tests {
 
         assert_abs_diff_eq!(resp1.re, resp2.re, epsilon = 1e-9);
         assert_abs_diff_eq!(resp1.im, resp2.im, epsilon = 1e-9);
-
 
         let s_inv = (1.0 / Tf::s()).to_ss().unwrap();
         let _ = 1.0 + &s_inv * &s_inv / (1.0 + &s_inv / 1.0);

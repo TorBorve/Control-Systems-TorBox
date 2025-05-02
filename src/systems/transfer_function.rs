@@ -402,12 +402,12 @@ macro_rules! impl_comb_ref_and_no_ref_operators {
                 }
             }
 
-            impl<T, U: Time> $operator<$struct_type<T, U>> for &$struct_type<T, U>  
+            impl<T, U: Time> $operator<$struct_type<T, U>> for &$struct_type<T, U>
             where
                 T: $operator<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T> + Copy,
             {
                 type Output = $struct_type<T, U>;
-                fn $operator_fn(self, rhs: $struct_type<T, U>) -> Self::Output { 
+                fn $operator_fn(self, rhs: $struct_type<T, U>) -> Self::Output {
                     self.$operator_fn(&rhs)
                 }
             }

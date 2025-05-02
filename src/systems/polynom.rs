@@ -261,7 +261,7 @@ macro_rules! impl_one_operator_scalar_trait {
                     scalar.$operator_fn(rhs)
                 }
             }
-            
+
             impl $operator<$scalar_type> for &$struct_type<$scalar_type>
             {
                 type Output = $struct_type<$scalar_type>;
@@ -1012,8 +1012,7 @@ mod tests {
         let ans: RationalFunction<f64> = 3.0 * rf2;
         assert_abs_diff_eq!(rf1.eval(&1.2), ans.eval(&1.2));
 
-
-        let s = RationalFunction::new_from_coeffs(&[0.0, 1.0], &[1.0]); 
+        let s = RationalFunction::new_from_coeffs(&[0.0, 1.0], &[1.0]);
         let _ = 1.0 / &s * 10.0 * &s - 3.0 / &s;
         let _ = &s * (1.0 + &s);
         let _ = &s + 1.0 - &s / (1.0 + &s) * &s * (1.0 * &s);
