@@ -329,6 +329,24 @@ macro_rules! impl_scalar_math_operator {
                     Tf::new_from_rf(new_rf)
                 }
             }
+
+            impl<U: Time> $operator<&$struct_type<$scalar_type, U>> for $scalar_type {
+                type Output = $struct_type<$scalar_type, U>;
+                fn $operator_fn(self, rhs: &$struct_type<$scalar_type, U>) -> Self::Output {
+                    let scalar_rf = RationalFunction::new_from_scalar(self);
+                    let new_rf = scalar_rf.$operator_fn(&rhs.rf);
+                    Tf::new_from_rf(new_rf)
+                }
+            }
+
+            impl<U: Time> $operator<$scalar_type> for &$struct_type<$scalar_type, U> {
+                type Output = $struct_type<$scalar_type, U>;
+                fn $operator_fn(self, rhs: $scalar_type) -> Self::Output {
+                    let scalar_rf = RationalFunction::new_from_scalar(rhs);
+                    let new_rf = (&self.rf).$operator_fn(&scalar_rf);
+                    Tf::new_from_rf(new_rf)
+                }
+            }
         )*
     };
 }
@@ -370,12 +388,38 @@ impl_scalar_math_operator!(
     i128,
     [(Add, add), (Sub, sub), (Mul, mul), (Div, div)]
 );
-impl_scalar_math_operator!(Tf, u8, [(Add, add), (Mul, mul), (Div, div)]);
-impl_scalar_math_operator!(Tf, u16, [(Add, add), (Mul, mul), (Div, div)]);
 
-impl_scalar_math_operator!(Tf, u32, [(Add, add), (Mul, mul), (Div, div)]);
-impl_scalar_math_operator!(Tf, u64, [(Add, add), (Mul, mul), (Div, div)]);
-impl_scalar_math_operator!(Tf, u128, [(Add, add), (Mul, mul), (Div, div)]);
+macro_rules! impl_comb_ref_and_no_ref_operators {
+    ($struct_type:ident , [$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl<T, U: Time> $operator<&$struct_type<T, U>> for $struct_type<T, U>
+            where
+                T: $operator<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T> + Copy,
+            {
+                type Output = $struct_type<T, U>;
+                fn $operator_fn(self, rhs: &$struct_type<T, U>) -> Self::Output {
+                    (&self).$operator_fn(rhs)
+                }
+            }
+
+            impl<T, U: Time> $operator<$struct_type<T, U>> for &$struct_type<T, U>  
+            where
+                T: $operator<Output = T> + Clone + Zero + One+ Default + Add + AddAssign + Mul<Output = T> + Neg<Output = T> + Copy,
+            {
+                type Output = $struct_type<T, U>;
+                fn $operator_fn(self, rhs: $struct_type<T, U>) -> Self::Output { 
+                    self.$operator_fn(&rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_comb_ref_and_no_ref_operators!(
+    Tf,
+    [(Mul, mul), (Div, div), (Sub, sub), (Add, add)]
+);
+
 impl<T, U: Time> Tf<T, U>
 where
     T: One + Zero + Mul<Output = T> + AddAssign + Clone,
@@ -637,5 +681,9 @@ mod tests {
         let ans = 3.0 * tf_org;
 
         assert_abs_diff_eq!(tf.eval(&1.2), ans.eval(&1.2), epsilon = 1e-9);
+
+        let s = Tf::s();
+
+        let _ = &s + 1.0 - &s * (1.0 + &s) / &s;
     }
 }

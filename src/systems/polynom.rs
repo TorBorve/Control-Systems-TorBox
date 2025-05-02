@@ -139,15 +139,6 @@ where
 
     fn mul(self, rhs: Self) -> Self::Output {
         &self * &rhs
-        // let mut result =
-        //     vec![T::default(); self.coeffs.len() + rhs.coeffs.len() - 1];
-        // for (idx_l, val_l) in self.coeffs.iter().enumerate() {
-        //     for (idx_r, val_r) in rhs.coeffs.iter().enumerate() {
-        //         result[idx_l + idx_r] += val_l.clone() * val_r.clone();
-        //     }
-        // }
-
-        // Polynomial { coeffs: result }
     }
 }
 
@@ -270,6 +261,26 @@ macro_rules! impl_one_operator_scalar_trait {
                     scalar.$operator_fn(rhs)
                 }
             }
+            
+            impl $operator<$scalar_type> for &$struct_type<$scalar_type>
+            {
+                type Output = $struct_type<$scalar_type>;
+                fn $operator_fn(self, rhs: $scalar_type) -> Self::Output {
+                    let scalar = $struct_type::<$scalar_type>::new_from_scalar(rhs);
+                    self.$operator_fn(&scalar)
+                    // self.$operator_fn($struct_type::<$scalar_type>::new_from_scalar(rhs))
+                }
+            }
+
+            impl $operator<&$struct_type<$scalar_type>> for $scalar_type {
+                type Output = $struct_type<$scalar_type>;
+                fn $operator_fn(self, rhs: &$struct_type<$scalar_type>) -> Self::Output {
+                    let scalar = &$struct_type::<$scalar_type>::new_from_scalar(self);
+                    scalar.$operator_fn(rhs)
+                }
+            }
+
+
         )*
     };
 }
@@ -632,6 +643,37 @@ impl_compound_assign!(
     ]
 );
 
+macro_rules! impl_comb_ref_and_no_ref_operators {
+    ($struct_type:ident , [$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl<T> $operator<&$struct_type<T>> for $struct_type<T>
+            where
+                T:  Add + Default + Mul<Output = T> + AddAssign + Clone + Copy + Neg<Output = T>,
+            {
+                type Output = $struct_type<T>;
+                fn $operator_fn(self, rhs: &$struct_type<T>) -> Self::Output {
+                    (&self).$operator_fn(rhs)
+                }
+            }
+
+            impl<T> $operator<$struct_type<T>> for &$struct_type<T>
+            where
+                T:  Add + Default + Mul<Output = T> + AddAssign + Clone + Copy + Neg<Output = T>,
+            {
+                type Output = $struct_type<T>;
+                fn $operator_fn(self, rhs: $struct_type<T>) -> Self::Output {
+                    self.$operator_fn(&rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_comb_ref_and_no_ref_operators!(
+    RationalFunction,
+    [(Mul, mul), (Div, div), (Sub, sub), (Add, add)]
+);
+
 impl_one_operator_scalar_trait!(
     RationalFunction,
     f64,
@@ -969,5 +1011,11 @@ mod tests {
 
         let ans: RationalFunction<f64> = 3.0 * rf2;
         assert_abs_diff_eq!(rf1.eval(&1.2), ans.eval(&1.2));
+
+
+        let s = RationalFunction::new_from_coeffs(&[0.0, 1.0], &[1.0]); 
+        let _ = 1.0 / &s * 10.0 * &s - 3.0 / &s;
+        let _ = &s * (1.0 + &s);
+        let _ = &s + 1.0 - &s / (1.0 + &s) * &s * (1.0 * &s);
     }
 }
