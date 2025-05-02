@@ -658,11 +658,56 @@ macro_rules! impl_scalar_math_operator_ss {
                     lhs_ss.$operator_fn(rhs)
                 }
             }
+
+            impl<U: Time + 'static> $operator<f64> for &Ss<U> {
+                type Output = Ss<U>;
+                fn $operator_fn(self, rhs: f64) -> Self::Output {
+                    let rhs_ss = Ss::<U>::new_from_scalar(rhs);
+                    self.$operator_fn(&rhs_ss)
+                }
+            }
+
+            impl<U: Time + 'static> $operator<&Ss<U>> for f64 {
+                type Output = Ss<U>;
+                fn $operator_fn(self, rhs: &Ss<U>) -> Self::Output {
+                    let scalar_ss = Ss::<U>::new_from_scalar(self);
+                    (&scalar_ss).$operator_fn(rhs)
+                }
+            }
         )*
     };
 }
 
 impl_scalar_math_operator_ss!([(Add, add), (Sub, sub), (Mul, mul), (Div, div)]);
+
+macro_rules! impl_comb_ref_and_no_ref_operators {
+    ([$(($operator:ident, $operator_fn:ident)), *]) => {
+        $(
+            impl<U: Time + 'static> $operator<&Ss<U>> for Ss<U>
+            {
+                type Output = Ss<U>;
+                fn $operator_fn(self, rhs: &Ss<U>) -> Self::Output {
+                    (&self).$operator_fn(rhs)
+                }
+            }
+
+            impl<U: Time + 'static> $operator<Ss<U>> for &Ss<U>
+            {
+                type Output = Ss<U>;
+                fn $operator_fn(self, rhs: Ss<U>) -> Self::Output {
+                    self.$operator_fn(&rhs)
+                }
+            }
+        )*
+    };
+}
+
+impl_comb_ref_and_no_ref_operators!([
+    (Add, add),
+    (Sub, sub),
+    (Mul, mul),
+    (Div, div)
+]);
 
 impl<U: Time + 'static> fmt::Display for Ss<U> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -982,5 +1027,12 @@ mod tests {
 
         assert_abs_diff_eq!(resp1.re, resp2.re, epsilon = 1e-9);
         assert_abs_diff_eq!(resp1.im, resp2.im, epsilon = 1e-9);
+
+        let s_inv = (1.0 / Tf::s()).to_ss().unwrap();
+        let _ =
+            1.0 + &s_inv * &s_inv / (1.0 + &s_inv / 1.0) + (&s_inv - &s_inv);
+        let _ = 1.0 + &s_inv;
+        let _ = s_inv.clone() + &s_inv;
+        let _ = &s_inv + s_inv.clone();
     }
 }
