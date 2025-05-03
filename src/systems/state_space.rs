@@ -394,7 +394,7 @@ impl<U: Time + 'static> Ss<U> {
     /// # Panics
     /// This function will panic if the input-output dimensions of `self` and
     /// `sys2` do not match.
-    pub fn feedback(self, sys2: Self) -> Self {
+    pub fn feedback(self, sys2: &Self) -> Self {
         assert_eq!(self.ninputs(), sys2.noutputs());
         assert_eq!(self.noutputs(), sys2.ninputs());
         self.assert_valid();
@@ -960,12 +960,12 @@ mod tests {
         let ss1 = (Tf::s() / (Tf::s() + 1.0)).to_ss().unwrap();
         let ss2 = (1.0 / Tf::s()).to_ss().unwrap();
 
-        let ss_fb = ss1.clone().feedback(ss2.clone());
+        let ss_fb = ss1.clone().feedback(&ss2);
         let tf_fb = ss_fb.to_tf().unwrap();
         assert_abs_diff_eq!(tf_fb, Tf::s() / (Tf::s() + 2.0));
 
         let ss2 = Ss::<Continuous>::new_from_scalar(1.0);
-        let ss_fb = ss1.clone().feedback(ss2.clone());
+        let ss_fb = ss1.clone().feedback(&ss2);
         let tf_fb = ss_fb.to_tf().unwrap();
         assert_abs_diff_eq!(tf_fb, 0.5 * Tf::s() / (Tf::s() + 0.5));
 
@@ -989,7 +989,7 @@ mod tests {
             let ss1 = tf1.to_ss_method(ControllableCF).unwrap();
             let ss2 = tf2.to_ss_method(ObservableCF).unwrap();
 
-            let ss_fb = ss1.feedback(ss2);
+            let ss_fb = ss1.feedback(&ss2);
             let ss_fb = ss_fb.to_tf().unwrap();
             let tf_fb = tf1.feedback(&tf2);
 
