@@ -195,6 +195,11 @@ fn freq_response_ss_mat(
     assert_eq!(m, 1, "Function is only tested for SISO systems");
     assert_eq!(p, 1, "Function is only tested for SISO systems");
 
+    if n == 0 {
+        let res = DMatrix::from_iterator(p, m, d.iter().map(|&x| c64(x, 0.0)));
+        return Ok(res);
+    }
+
     let baleig = CString::new("A").unwrap(); // balance A and compute condition number
     let inita = CString::new("G").unwrap(); // general A matrix
 
@@ -272,7 +277,7 @@ fn freq_response_ss_mat(
 
 #[cfg(test)]
 mod tests {
-    use crate::{FrequencyResponse, Tf};
+    use crate::{Continuous, FrequencyResponse, Ss, Tf, utils::traits::Mag2Db};
 
     use super::log_space;
     use approx::assert_abs_diff_eq;
@@ -315,6 +320,17 @@ mod tests {
         for (res_tf, res_ss) in nyq_tf.iter().zip(nyq_ss.iter()) {
             assert_abs_diff_eq!(res_tf.re, res_ss.re, epsilon = 1e-3);
             assert_abs_diff_eq!(res_tf.im, res_tf.im, epsilon = 1e-3);
+        }
+    }
+
+    #[test]
+    fn ss_freq_resp_edge_cases() {
+        let gain = 3.0;
+        let ss = Ss::<Continuous>::new_from_scalar(gain);
+        let mag_phase_freq = ss.bode(0.1, 10.);
+        for [mag, phase, _] in mag_phase_freq {
+            assert_abs_diff_eq!(mag, gain.mag2db(), epsilon = 1e-6);
+            assert_abs_diff_eq!(phase, 0.);
         }
     }
 }
