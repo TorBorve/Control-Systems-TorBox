@@ -24,19 +24,21 @@ let sys = 1.0 / Tf::s();
 let pi_c = 1.0 + 1.0 / Tf::s();
 
 let openloop = sys * pi_c * tf_lp;
-let tracking = openloop.clone() / (1.0 + openloop);
+let tracking = openloop.feedback(&Tf::new_from_scalar(1.0));
 ```
 
 State-Space representations is also implemented and you can convert between transfer function and state-space
 
 ```rust
 use control_systems_torbox::*;
-use nalgebra::DMatrix;
+use nalgebra::dmatrix;
 
-let a = DMatrix::from_row_slice(2, 2, &[0., 0., 1., 0.]);
-let b = DMatrix::from_row_slice(2, 1, &[1., 0.]);
-let c = DMatrix::from_row_slice(1, 2, &[0., 1.]);
-let d = DMatrix::from_row_slice(1, 1, &[0.]);
+let a = dmatrix![0., 1.;
+                 0., 0.];
+let b = dmatrix![0.;
+                 1.];
+let c = dmatrix![1., 0.];
+let d = dmatrix![0.];
 
 let sys_ss = Ss::<Continuous>::new(a, b, c, d).unwrap();
 let sys_tf = sys_ss.to_tf().unwrap();
